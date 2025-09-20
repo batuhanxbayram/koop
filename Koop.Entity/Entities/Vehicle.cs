@@ -12,12 +12,16 @@ namespace Koop.Entity.Entities
         [Key]
         public long Id { get; set; }
 
+        public Guid AppUserId { get; set; }
+
+        public AppUser AppUser { get; set; }
+
         [Required]
         [StringLength(20)]
         public string LicensePlate { get; set; }
 
         [StringLength(150)]
-        public string? DriverName { get; set; } // Soru işareti, bu alanın nullable (boş olabilir) olduğunu belirtir.
+        public string? DriverName { get; set; } 
 
         [StringLength(20)]
         public string? PhoneNumber { get; set; }
@@ -25,10 +29,6 @@ namespace Koop.Entity.Entities
         // İsteğiniz üzerine eklenen aktif/pasif durumu
         public bool IsActive { get; set; } = true;
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-
-        // Navigation Property: Bir aracın birden çok sıra kaydı olabilir.
         public ICollection<RouteVehicleQueue> RouteVehicleQueues { get; set; } = new List<RouteVehicleQueue>();
     }
 }

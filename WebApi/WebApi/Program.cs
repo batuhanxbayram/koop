@@ -80,6 +80,53 @@ builder.Services.LoadDataLayerExtension(builder.Configuration);
 var app = builder.Build();
 
 
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var userManager = services.GetRequiredService<UserManager<AppUser>>();
+        var roleManager = services.GetRequiredService<RoleManager<AppRole>>();
+
+        // --- 1. Adým: Temel Roller oluþturuluyor ---
+        string[] roleNames = { "Admin", "User" };
+        foreach (var roleName in roleNames)
+        {
+            // Rol daha önce oluþturulmamýþsa, þimdi oluþtur.
+            if (!await roleManager.RoleExistsAsync(roleName))
+            {
+                await roleManager.CreateAsync(new AppRole { Name = roleName });
+                Console.WriteLine($"'{roleName}' rolü oluþturuldu."); // Bilgi mesajý
+            }
+        }
+
+        // --- 2. Adým: Ýlk Admin Kullanýcýsý oluþturuluyor (eðer yoksa) ---
+        var adminUserName = "admin";
+        var adminUser = await userManager.FindByNameAsync(adminUserName);
+
+        if (adminUser == null)
+        {
+            AppUser newAdminUser = new AppUser { UserName = adminUserName };
+            // BU ÞÝFREYÝ MUTLAKA DEÐÝÞTÝRÝN VE GÜVENLÝ BÝR YERE NOT ALIN!
+            var result = await userManager.CreateAsync(newAdminUser, "GucluSifre123!");
+
+            if (result.Succeeded)
+            {
+                // Kullanýcý baþarýyla oluþturulduysa, onu "Admin" rolüne ata
+                await userManager.AddToRoleAsync(newAdminUser, "Admin");
+                Console.WriteLine($"'{adminUserName}' kullanýcýsý oluþturuldu ve 'Admin' rolü atandý.");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        // Hata durumunda konsola yazdýrma
+        Console.WriteLine("Veritabaný tohumlama sýrasýnda bir hata oluþtu: " + ex.Message);
+    }
+}
+
+
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

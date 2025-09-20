@@ -7,17 +7,11 @@ using System.Threading.Tasks;
 
 namespace Koop.Entity.DTOs.Vehicle
 {
-    public class UpdateVehicleDto
+    public class UpdateRouteDto
     {
         [Required]
-        [StringLength(20)]
-        public string LicensePlate { get; set; }
-
-        [StringLength(150)]
-        public string? DriverName { get; set; }
-
-        [StringLength(20)]
-        public string? PhoneNumber { get; set; }
+        [StringLength(100)]
+        public string RouteName { get; set; }
 
         public bool IsActive { get; set; }
     }

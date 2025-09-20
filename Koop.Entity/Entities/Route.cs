@@ -15,14 +15,7 @@ namespace Koop.Entity.Entities
         [Required] 
         [StringLength(100)] 
         public string RouteName { get; set; }
-
-        // Varsayılan değeri 'true' olan boolean alan
         public bool IsActive { get; set; } = true;
-
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-
-        // Navigation Property: Bir rotanın birden çok sıra kaydı olabilir.
         public ICollection<RouteVehicleQueue> RouteVehicleQueues { get; set; } = new List<RouteVehicleQueue>();
     }
 }

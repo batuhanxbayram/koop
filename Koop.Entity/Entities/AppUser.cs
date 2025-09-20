@@ -15,6 +15,8 @@ namespace Koop.Entity.Entities
         public string? RefreshToken { get; set; }
         public DateTime RefreshTokenExpireTime { get; set; }
 
+        public Vehicle Vehicle { get; set; }
+
 
 
     }
