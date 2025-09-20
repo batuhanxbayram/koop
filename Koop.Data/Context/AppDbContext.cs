@@ -40,7 +40,15 @@ namespace Koop.Data.Context
                 .HasIndex(q => new { q.RouteId, q.VehicleId })
                 .IsUnique();
 
+                builder.Entity<AppUser>()
+                    .HasOne(u => u.Vehicle)          // Bir AppUser'ın bir aracı vardır
+                    .WithOne(v => v.AppUser)         // Bu araç da bir AppUser'a aittir
+                    .HasForeignKey<Vehicle>(v => v.AppUserId);
+
             builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+
+
+
 
         }
 
