@@ -20,32 +20,32 @@ namespace WebApi.Controllers.Auth
             _tokenService = tokenService;
         }
 
-        [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
-        {
-            var userExists = await _userManager.FindByNameAsync(registerDto.Username);
-            if (userExists != null)
-            {
-                return StatusCode(StatusCodes.Status409Conflict, new { Message = "Bu kullanıcı adı zaten alınmış." });
-            }
+        //[HttpPost("register")]
+        //public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
+        //{
+        //    var userExists = await _userManager.FindByNameAsync(registerDto.Username);
+        //    if (userExists != null)
+        //    {
+        //        return StatusCode(StatusCodes.Status409Conflict, new { Message = "Bu kullanıcı adı zaten alınmış." });
+        //    }
 
-            AppUser newUser = new()
-            {
-                UserName = registerDto.Username,
-                Email = registerDto.Email,
-                FullName = registerDto.FullName,
-                SecurityStamp = Guid.NewGuid().ToString()
-            };
+        //    AppUser newUser = new()
+        //    {
+        //        UserName = registerDto.Username,
+        //        Email = registerDto.Email,
+        //        FullName = registerDto.FullName,
+        //        SecurityStamp = Guid.NewGuid().ToString()
+        //    };
 
-            var result = await _userManager.CreateAsync(newUser, registerDto.Password);
+        //    var result = await _userManager.CreateAsync(newUser, registerDto.Password);
 
-            if (!result.Succeeded)
-            {
-                return BadRequest(new { Message = "Kullanıcı oluşturulurken bir hata oluştu.", Errors = result.Errors });
-            }
+        //    if (!result.Succeeded)
+        //    {
+        //        return BadRequest(new { Message = "Kullanıcı oluşturulurken bir hata oluştu.", Errors = result.Errors });
+        //    }
 
-            return StatusCode(StatusCodes.Status201Created, new { Message = "Kullanıcı başarıyla oluşturuldu." });
-        }
+        //    return StatusCode(StatusCodes.Status201Created, new { Message = "Kullanıcı başarıyla oluşturuldu." });
+        //}
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)

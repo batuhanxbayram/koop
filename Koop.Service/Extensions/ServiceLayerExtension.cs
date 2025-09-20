@@ -40,7 +40,7 @@ namespace Koop.Service.Extensions
                     ValidateAudience = true,
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(cfg["JWT:Secret"])),
-                    ValidateLifetime = false,
+                    ValidateLifetime = true,
                     ValidIssuer = cfg["JWT:Issuer"],
                     ValidAudience = cfg["JWT:Audience"],
                     ClockSkew = TimeSpan.Zero
