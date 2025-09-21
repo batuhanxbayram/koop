@@ -18,6 +18,27 @@ public class AdminVehiclesController : ControllerBase
         _context = context;
     }
 
+    [HttpGet]
+    public async Task<IActionResult> GetAllVehicles()
+    {
+        var vehicles = await _context.Vehicles
+            .Include(v => v.AppUser) 
+            .Select(v => new VehicleDto
+            {
+                Id = v.Id,
+                LicensePlate = v.LicensePlate,
+                DriverName = v.DriverName,
+                PhoneNumber = v.PhoneNumber,
+                IsActive = v.IsActive,
+                AppUserId = v.AppUserId,
+                UserFullName = v.AppUser.FullName 
+            })
+            .ToListAsync();
+
+        return Ok(vehicles);
+    }
+
+
     /// <summary>
     /// Yeni bir araç ekler.
     /// </summary>

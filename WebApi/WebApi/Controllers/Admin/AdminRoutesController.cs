@@ -18,7 +18,18 @@ public class AdminRoutesController : ControllerBase
         _context = context;
     }
 
-  
+    [HttpGet]
+    public async Task<IActionResult> GetAllRoutes()
+    {
+        var routes = await _context.Routes
+            .OrderBy(r => r.RouteName) 
+            .ToListAsync();
+
+        return Ok(routes);
+    }
+
+
+
     [HttpPost]
     public async Task<IActionResult> CreateRoute([FromBody] CreateRouteDto createRouteDto)
     {
