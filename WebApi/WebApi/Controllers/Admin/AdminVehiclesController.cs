@@ -18,6 +18,26 @@ public class AdminVehiclesController : ControllerBase
         _context = context;
     }
 
+    [HttpPost("{routeId}/move-first-to-end")]
+    public async Task<IActionResult> MoveFirstToEnd(long routeId)
+    {
+        var firstInQueue = await _context.RouteVehicleQueues
+            .Where(q => q.RouteId == routeId)
+            .OrderBy(q => q.QueueTimestamp)
+            .FirstOrDefaultAsync();
+
+        if (firstInQueue == null)
+        {
+            return NotFound(new { Message = $"Bu güzergahta ({routeId}) sırada bekleyen araç bulunamadı." });
+        }
+        firstInQueue.QueueTimestamp = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(firstInQueue);
+    }
+
+
     [HttpGet]
     public async Task<IActionResult> GetAllVehicles()
     {
