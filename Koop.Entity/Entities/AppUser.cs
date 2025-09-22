@@ -17,8 +17,6 @@ namespace Koop.Entity.Entities
 
         public Vehicle Vehicle { get; set; }
 
-
-
     }
 
 
