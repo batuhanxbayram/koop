@@ -11,7 +11,6 @@ namespace Koop.Entity.Entities
     {
         [Key] 
         public long Id { get; set; }
-
         [Required] 
         [StringLength(100)] 
         public string RouteName { get; set; }

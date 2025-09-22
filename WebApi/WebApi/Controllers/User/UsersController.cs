@@ -1,4 +1,5 @@
-﻿using Koop.Entity.DTOs.User;
+﻿using Koop.Data.Context;
+using Koop.Entity.DTOs.User;
 using Koop.Entity.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -14,16 +15,38 @@ namespace WebApi.Controllers.User
     public class UsersController : ControllerBase
     {
         private readonly UserManager<AppUser> _userManager;
-        private readonly RoleManager<AppRole> _roleManager; 
-        public UsersController(UserManager<AppUser> userManager, RoleManager<AppRole> roleManager)
+        private readonly RoleManager<AppRole> _roleManager;
+        private readonly AppDbContext context;
+
+        public UsersController(UserManager<AppUser> userManager, RoleManager<AppRole> roleManager,AppDbContext context)
         {
             _userManager = userManager;
             _roleManager = roleManager;
+            this.context = context;
+        }
+
+
+        [HttpGet]
+        // [Authorize(Roles = "Admin")] // Sadece adminlerin erişmesini isterseniz bunu ekleyin
+        public async Task<IActionResult> GetUserAndVehicle()
+        {
+            var users = await context.Users
+                .Include(u => u.Vehicle) 
+                .Select(u => new UserVehicleDto
+                {
+                    Id = u.Id,
+                    FullName = u.FullName,
+                    LicensePlate = u.Vehicle != null ? u.Vehicle.LicensePlate : "-",
+                    PhoneNumber = u.Vehicle != null ? u.Vehicle.PhoneNumber : "-"
+                })
+                .ToListAsync();
+
+            return Ok(users);
         }
 
 
         [Authorize(Roles = "Admin")]
-        [HttpGet]
+        [HttpGet("with-roles")]
         public async Task<IActionResult> GetUsers()
         {
             var users = await _userManager.Users.ToListAsync();
@@ -41,6 +64,33 @@ namespace WebApi.Controllers.User
 
             return Ok(userDtos);
         }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")] // Sadece adminlerin kullanıcı silebilmesini sağlar
+        public async Task<IActionResult> DeleteUser(Guid id)
+        {
+            // Kullanıcıyı ID'sine göre bul
+            var user = await _userManager.FindByIdAsync(id.ToString());
+
+            if (user == null)
+            {
+                // Kullanıcı bulunamazsa 404 Not Found hatası döndür
+                return NotFound(new { Message = "Silinecek kullanıcı bulunamadı." });
+            }
+
+            // Kullanıcıyı sil
+            var result = await _userManager.DeleteAsync(user);
+
+            if (result.Succeeded)
+            {
+                // Silme işlemi başarılıysa 200 OK veya 204 No Content döndür
+                return Ok(new { Message = "Kullanıcı başarıyla silindi." });
+            }
+
+            // Silme işlemi sırasında bir hata oluşursa 400 Bad Request döndür
+            return BadRequest(result.Errors);
+        }
+
 
         [HttpPost]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserDto createUserDto)
