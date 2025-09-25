@@ -19,6 +19,10 @@ namespace Koop.Entity.DTOs.User
         [MinLength(6, ErrorMessage = "Şifre en az 6 karakter olmalıdır.")]
         public string Password { get; set; }
 
+        [Compare("Password", ErrorMessage = "Şifreler uyuşmuyor.")]
+        public string ConfirmPassword { get; set; }
+
+
         // Opsiyonel: Kullanıcı oluşturulurken direkt rol ataması yapmak isterseniz.
         public IList<string>? Roles { get; set; }
     }

@@ -44,6 +44,25 @@ namespace WebApi.Controllers.User
             return Ok(users);
         }
 
+        [HttpGet("without-vehicle")]
+        public async Task<IActionResult> GetUserAndVehicleWithout()
+        {
+            var users = await context.Users
+                .Include(u => u.Vehicle)
+               
+                .Where(u => u.Vehicle == null)
+                .Select(u => new UserVehicleDto
+                {
+                    Id = u.Id,
+                    FullName = u.FullName,
+                    LicensePlate = "-",
+                    PhoneNumber = "-"
+                })
+                .ToListAsync();
+            return Ok(users);
+        }
+
+
 
         [Authorize(Roles = "Admin")]
         [HttpGet("with-roles")]
@@ -93,17 +112,21 @@ namespace WebApi.Controllers.User
 
 
         [HttpPost]
+        // [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserDto createUserDto)
         {
-           
             var userExists = await _userManager.FindByNameAsync(createUserDto.UserName);
             if (userExists != null)
             {
-               
-                return StatusCode(StatusCodes.Status409Conflict, new { Message = "Bu kullanıcı adı zaten alınmış." });
+                return StatusCode(StatusCodes.Status409Conflict, "Bu kullanıcı adı zaten alınmış.");
             }
 
-            var user = new AppUser { UserName = createUserDto.UserName , FullName=createUserDto.FullName };
+            var user = new AppUser
+            {
+                UserName = createUserDto.UserName,
+                FullName = createUserDto.FullName
+            };
+
             var result = await _userManager.CreateAsync(user, createUserDto.Password);
 
             if (!result.Succeeded)
@@ -111,47 +134,42 @@ namespace WebApi.Controllers.User
                 return BadRequest(result.Errors);
             }
 
-          
+            // --- HİBRİT ROL ATAMA MANTIĞI ---
 
+            // EĞER frontend veya seed script'i bir rol listesi gönderdiyse:
             if (createUserDto.Roles != null && createUserDto.Roles.Any())
             {
-        
+                // Gelen rollerin sistemde var olup olmadığını kontrol et (güvenlik için)
                 foreach (var roleName in createUserDto.Roles)
                 {
                     if (!await _roleManager.RoleExistsAsync(roleName))
                     {
-                       
-                        await _userManager.DeleteAsync(user);
-                        return BadRequest(new { Message = $"'{roleName}' adında bir rol bulunamadı." });
+                        await _userManager.DeleteAsync(user); // Hatalı durumda kullanıcıyı geri sil
+                        return BadRequest($"'{roleName}' adında bir rol bulunamadı.");
                     }
                 }
+                // Rolleri ata
                 await _userManager.AddToRolesAsync(user, createUserDto.Roles);
             }
+            // EĞER frontend'den bir rol listesi GELMEDİYSE (bizim senaryomuz):
             else
             {
-            
                 var defaultRole = "User";
                 if (await _roleManager.RoleExistsAsync(defaultRole))
                 {
+                    // Varsayılan 'User' rolünü ata
                     await _userManager.AddToRoleAsync(user, defaultRole);
                 }
                 else
                 {
-                  
                     await _userManager.DeleteAsync(user);
-                    return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "Varsayılan 'User' rolü sistemde tanımlı değil. Kullanıcı oluşturulamadı." });
+                    return StatusCode(StatusCodes.Status500InternalServerError, "Sistem hatası: Varsayılan 'User' rolü bulunamadı.");
                 }
             }
-          
+            // --- MANTIK BİTTİ ---
 
-            var createdUserDto = new UserDto
-            {
-                Id = user.Id,
-                UserName = user.UserName,
-                Roles = await _userManager.GetRolesAsync(user)
-            };
-
-            return CreatedAtAction(nameof(GetUsers), new { id = user.Id }, createdUserDto);
+            var createdUserDto = new UserVehicleDto { /* ... */ };
+            return Ok(createdUserDto);
         }
     }
 }
