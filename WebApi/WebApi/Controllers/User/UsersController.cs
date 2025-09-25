@@ -110,6 +110,61 @@ namespace WebApi.Controllers.User
             return BadRequest(result.Errors);
         }
 
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateUser(Guid id, [FromBody] UpdateUserDto updateUserDto)
+        {
+            var user = await _userManager.FindByIdAsync(id.ToString());
+            if (user == null)
+            {
+                return NotFound("Güncellenecek kullanıcı bulunamadı.");
+            }
+
+            // 1. Kullanıcı Adını Güncelleme
+            // Eğer gelen kullanıcı adı mevcut kullanıcı adından farklıysa
+            if (user.UserName != updateUserDto.UserName)
+            {
+                // Yeni kullanıcı adının başkası tarafından kullanılıp kullanılmadığını kontrol et
+                var userExists = await _userManager.FindByNameAsync(updateUserDto.UserName);
+                if (userExists != null)
+                {
+                    return BadRequest("Bu kullanıcı adı zaten başka bir kullanıcı tarafından alınmış.");
+                }
+                // UserManager ile kullanıcı adını güvenli bir şekilde güncelle
+                var setUserNameResult = await _userManager.SetUserNameAsync(user, updateUserDto.UserName);
+                if (!setUserNameResult.Succeeded)
+                {
+                    return BadRequest(setUserNameResult.Errors);
+                }
+            }
+
+            // 2. Tam Adı Güncelleme
+            user.FullName = updateUserDto.FullName;
+
+            // 3. Şifreyi Güncelleme (Eğer şifre girildiyse)
+            if (!string.IsNullOrEmpty(updateUserDto.Password))
+            {
+                // Identity'nin güvenli şifre sıfırlama mekanizmasını kullanıyoruz
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var resetPasswordResult = await _userManager.ResetPasswordAsync(user, token, updateUserDto.Password);
+                if (!resetPasswordResult.Succeeded)
+                {
+                    return BadRequest(resetPasswordResult.Errors);
+                }
+            }
+
+            // 4. Genel Kullanıcı Güncelleme
+            // FullName gibi Identity'nin temelinde olmayan alanları güncellemek için bu gerekli.
+            var result = await _userManager.UpdateAsync(user);
+
+            if (result.Succeeded)
+            {
+                return NoContent(); // Başarılı
+            }
+
+            return BadRequest(result.Errors);
+        }
+
 
         [HttpPost]
         // [Authorize(Roles = "Admin")]
