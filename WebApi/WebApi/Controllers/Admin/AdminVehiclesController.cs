@@ -59,21 +59,17 @@ public class AdminVehiclesController : ControllerBase
     }
 
 
-    /// <summary>
-    /// Yeni bir araç ekler.
-    /// </summary>
+ 
     [HttpPost]
     public async Task<IActionResult> CreateVehicle([FromBody] CreateVehicleDto createVehicleDto)
     {
-        // Aynı plakada başka bir araç var mı diye kontrol et
         if (await _context.Vehicles.AnyAsync(v => v.LicensePlate == createVehicleDto.LicensePlate))
         {
             return BadRequest("Bu plaka zaten kayıtlı.");
         }
 
-        // Atanmak istenen kullanıcı var mı diye kontrol et
-        var userExists = await _context.Users.AnyAsync(u => u.Id == createVehicleDto.AppUserId);
-        if (!userExists)
+        var user = await _context.Users.FindAsync(createVehicleDto.AppUserId);
+        if (user == null)
         {
             return BadRequest("Belirtilen kullanıcı bulunamadı.");
         }
@@ -90,7 +86,23 @@ public class AdminVehiclesController : ControllerBase
         _context.Vehicles.Add(vehicle);
         await _context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetVehicleById), new { id = vehicle.Id }, vehicle);
+        // --- DEĞİŞİKLİK BURADA BAŞLIYOR ---
+
+        // Frontend'in ihtiyacı olan VehicleDto'yu oluşturuyoruz.
+        // Bu DTO, kullanıcının tam adını da içerir.
+        var vehicleDto = new VehicleDto
+        {
+            Id = vehicle.Id,
+            LicensePlate = vehicle.LicensePlate,
+            DriverName = vehicle.DriverName,
+            PhoneNumber = vehicle.PhoneNumber,
+            IsActive = vehicle.IsActive,
+            AppUserId = vehicle.AppUserId,
+            UserFullName = user.FullName // Kullanıcının tam adını ekliyoruz
+        };
+
+        // Oluşturulan DTO'yu CreatedAtAction ile geri dönüyoruz.
+        return CreatedAtAction(nameof(GetVehicleById), new { id = vehicle.Id }, vehicleDto);
     }
 
 
