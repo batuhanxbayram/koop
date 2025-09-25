@@ -25,7 +25,9 @@ builder.Services.AddIdentity<AppUser, AppRole>(opt =>
     opt.SignIn.RequireConfirmedEmail = false;
 })
 .AddRoles<AppRole>()
-.AddEntityFrameworkStores<AppDbContext>();
+.AddEntityFrameworkStores<AppDbContext>()
+.AddDefaultTokenProviders();
+
 
 
 

@@ -18,7 +18,7 @@ namespace Koop.Entity.Entities
         public DateTime QueueTimestamp { get; set; } = DateTime.UtcNow;
         [ForeignKey("RouteId")]
         public Route Route { get; set; } = null!;
-        [ForeignKey("VehicleId")]
+        [ForeignKey("VehicleId")] 
         public Vehicle Vehicle { get; set; } = null!;
     }
 
