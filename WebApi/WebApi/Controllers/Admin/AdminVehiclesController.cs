@@ -117,6 +117,43 @@ public class AdminVehiclesController : ControllerBase
         return Ok(vehicle);
     }
 
+    [HttpPost("move-to-end")]
+    public async Task<IActionResult> MoveVehicleToEnd(long routeId, [FromBody] MoveVehicleDto dto)
+    {
+        var queueEntry = await _context.RouteVehicleQueues
+            .FirstOrDefaultAsync(q => q.RouteId == routeId && q.VehicleId == dto.VehicleId);
+
+        if (queueEntry == null) return NotFound("Araç bu sırada bulunamadı.");
+
+        queueEntry.QueueTimestamp = DateTime.UtcNow; // Zaman damgasını şimdiki zamana ayarla
+        await _context.SaveChangesAsync();
+        return Ok();
+    }
+
+    // Belirtilen bir aracı sıranın en BAŞINA gönderir
+    [HttpPost("move-to-front")]
+    public async Task<IActionResult> MoveVehicleToFront(long routeId, [FromBody] MoveVehicleDto dto)
+    {
+        var queueEntry = await _context.RouteVehicleQueues
+            .FirstOrDefaultAsync(q => q.RouteId == routeId && q.VehicleId == dto.VehicleId);
+
+        if (queueEntry == null) return NotFound("Araç bu sırada bulunamadı.");
+
+        // Sırada başka araç varsa, en öndekinin zamanından 1 saniye öncesine ayarla
+        var firstInQueue = await _context.RouteVehicleQueues
+            .Where(q => q.RouteId == routeId)
+            .OrderBy(q => q.QueueTimestamp)
+            .FirstOrDefaultAsync();
+
+        if (firstInQueue != null && firstInQueue.VehicleId != dto.VehicleId)
+        {
+            queueEntry.QueueTimestamp = firstInQueue.QueueTimestamp.AddSeconds(-1);
+        }
+        // Sırada başka araç yoksa veya zaten ilk sıradaysa bir şey yapmaya gerek yok.
+
+        await _context.SaveChangesAsync();
+        return Ok();
+    }
 
 
     [HttpPut("{id}")]
