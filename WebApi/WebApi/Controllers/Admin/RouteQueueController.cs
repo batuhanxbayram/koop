@@ -10,7 +10,7 @@ namespace WebApi.Controllers.Admin
 {
     [Route("api/routes/{routeId}/queue")] 
     [ApiController]
-    [Authorize(Roles = "Admin")]
+    
     public class RouteQueueController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -122,6 +122,43 @@ namespace WebApi.Controllers.Admin
             await _context.SaveChangesAsync();
 
             return NoContent(); // Başarılı silme
+        }
+
+
+        [HttpPost("reorder")]
+        public async Task<IActionResult> ReorderQueue(long routeId, [FromBody] ReorderQueueDto dto)
+        {
+         
+            var queueEntries = await _context.RouteVehicleQueues
+                .Where(q => q.RouteId == routeId)
+                .ToListAsync();
+
+        
+            if (dto.OrderedVehicleIds.Count != queueEntries.Count)
+            {
+                return BadRequest("Sıralama listesi ile veritabanı kaydı eşleşmiyor.");
+            }
+
+           
+            var baseTimestamp = DateTime.UtcNow;
+
+        
+            for (int i = 0; i < dto.OrderedVehicleIds.Count; i++)
+            {
+                var vehicleId = dto.OrderedVehicleIds[i];
+                var entryToUpdate = queueEntries.FirstOrDefault(q => q.VehicleId == vehicleId);
+
+                if (entryToUpdate != null)
+                {
+                    
+                    entryToUpdate.QueueTimestamp = baseTimestamp.AddSeconds(i);
+                }
+            }
+
+            
+            await _context.SaveChangesAsync();
+
+            return Ok("Sıralama başarıyla güncellendi.");
         }
     }
 }
