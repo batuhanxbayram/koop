@@ -84,6 +84,8 @@ namespace WebApi.Controllers.User
             return Ok(userDtos);
         }
 
+
+
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")] // Sadece adminlerin kullanıcı silebilmesini sağlar
         public async Task<IActionResult> DeleteUser(Guid id)
@@ -120,31 +122,12 @@ namespace WebApi.Controllers.User
                 return NotFound("Güncellenecek kullanıcı bulunamadı.");
             }
 
-            // 1. Kullanıcı Adını Güncelleme
-            // Eğer gelen kullanıcı adı mevcut kullanıcı adından farklıysa
-            if (user.UserName != updateUserDto.UserName)
-            {
-                // Yeni kullanıcı adının başkası tarafından kullanılıp kullanılmadığını kontrol et
-                var userExists = await _userManager.FindByNameAsync(updateUserDto.UserName);
-                if (userExists != null)
-                {
-                    return BadRequest("Bu kullanıcı adı zaten başka bir kullanıcı tarafından alınmış.");
-                }
-                // UserManager ile kullanıcı adını güvenli bir şekilde güncelle
-                var setUserNameResult = await _userManager.SetUserNameAsync(user, updateUserDto.UserName);
-                if (!setUserNameResult.Succeeded)
-                {
-                    return BadRequest(setUserNameResult.Errors);
-                }
-            }
-
-            // 2. Tam Adı Güncelleme
+            // YALNIZCA BU SATIR KALDI: Kullanıcının tam adını güncelliyoruz.
             user.FullName = updateUserDto.FullName;
 
-            // 3. Şifreyi Güncelleme (Eğer şifre girildiyse)
+            // Şifreyi Güncelleme (Eğer şifre girildiyse)
             if (!string.IsNullOrEmpty(updateUserDto.Password))
             {
-                // Identity'nin güvenli şifre sıfırlama mekanizmasını kullanıyoruz
                 var token = await _userManager.GeneratePasswordResetTokenAsync(user);
                 var resetPasswordResult = await _userManager.ResetPasswordAsync(user, token, updateUserDto.Password);
                 if (!resetPasswordResult.Succeeded)
@@ -153,13 +136,12 @@ namespace WebApi.Controllers.User
                 }
             }
 
-            // 4. Genel Kullanıcı Güncelleme
-            // FullName gibi Identity'nin temelinde olmayan alanları güncellemek için bu gerekli.
+            // Genel Kullanıcı Güncelleme
             var result = await _userManager.UpdateAsync(user);
 
             if (result.Succeeded)
             {
-                return NoContent(); // Başarılı
+                return NoContent();
             }
 
             return BadRequest(result.Errors);

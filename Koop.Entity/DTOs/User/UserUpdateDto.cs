@@ -13,11 +13,7 @@ namespace Koop.Entity.DTOs.User
         [StringLength(100)]
         public string FullName { get; set; }
 
-        [Required(ErrorMessage = "Kullanıcı adı zorunludur.")]
-        public string UserName { get; set; }
-
-        // Şifre alanları nullable (?) olarak işaretlenir. 
-        // Eğer bu alanlar frontend'den boş (null) gelirse, şifre değişikliği yapılmaz.
+       
         public string? Password { get; set; }
 
         [Compare("Password", ErrorMessage = "Şifreler uyuşmuyor.")]
