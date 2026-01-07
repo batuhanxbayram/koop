@@ -190,6 +190,49 @@ public class AdminVehiclesController : ControllerBase
         return NoContent();
     }
 
+    [HttpGet("idle-warnings")]
+    public async Task<IActionResult> GetIdleVehicles([FromQuery] int days = 7)
+    {
+        var thresholdDate = DateTime.UtcNow.AddDays(-days);
+
+        // SQL Mantığı:
+        // Select * from Vehicles v
+        // Left Join RouteVehicleQueues q on v.Id = q.VehicleId
+        // Where v.IsActive = true 
+        // AND (q.QueueTimestamp < 7_gun_once OR q.Id IS NULL)
+
+        var idleVehicles = await _context.Vehicles
+            .Include(v => v.AppUser)
+            .Include(v => v.RouteVehicleQueues) // Kuyruk bilgisini dahil et
+            .Where(v => v.IsActive) // Sadece aktif araçlar
+            .Select(v => new
+            {
+                Vehicle = v,
+                // Aracın bulunduğu en son kuyruk kaydını al (Bir araç birden fazla kuyrukta olabilir mi bilmiyoruz ama en yenisini alalım)
+                LastQueueInfo = v.RouteVehicleQueues.OrderByDescending(q => q.QueueTimestamp).FirstOrDefault()
+            })
+            .Where(x =>
+                // DURUM 1: Araç hiçbir kuyrukta yoksa (Sistemde kayıtlı ama işe çıkmamış)
+                x.LastQueueInfo == null
+                ||
+                // DURUM 2: Kuyrukta var ama tarihi eşik değerden eski (7 gündür sırası değişmemiş)
+                x.LastQueueInfo.QueueTimestamp < thresholdDate
+            )
+            .Select(x => new VehicleDto
+            {
+                Id = x.Vehicle.Id,
+                LicensePlate = x.Vehicle.LicensePlate,
+                DriverName = x.Vehicle.AppUser != null ? x.Vehicle.AppUser.FullName : x.Vehicle.DriverName,
+                PhoneNumber = x.Vehicle.PhoneNumber,
+                IsActive = x.Vehicle.IsActive,
+                AppUserId = x.Vehicle.AppUserId,
+                UserFullName = x.Vehicle.AppUser != null ? x.Vehicle.AppUser.FullName : ""
+            })
+            .ToListAsync();
+
+        return Ok(idleVehicles);
+    }
+
 
 
     [HttpDelete("{id}")]

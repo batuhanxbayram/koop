@@ -26,7 +26,7 @@ namespace Koop.Entity.Entities
         [StringLength(20)]
         public string? PhoneNumber { get; set; }
 
-        // İsteğiniz üzerine eklenen aktif/pasif durumu
+        
         public bool IsActive { get; set; } = true;
 
         public ICollection<RouteVehicleQueue> RouteVehicleQueues { get; set; } = new List<RouteVehicleQueue>();
