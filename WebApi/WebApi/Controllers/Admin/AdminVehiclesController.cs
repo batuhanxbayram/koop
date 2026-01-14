@@ -195,16 +195,12 @@ public class AdminVehiclesController : ControllerBase
     {
         var thresholdDate = DateTime.UtcNow.AddDays(-days);
 
-        // SQL Mantığı:
-        // Select * from Vehicles v
-        // Left Join RouteVehicleQueues q on v.Id = q.VehicleId
-        // Where v.IsActive = true 
-        // AND (q.QueueTimestamp < 7_gun_once OR q.Id IS NULL)
+   
 
         var idleVehicles = await _context.Vehicles
             .Include(v => v.AppUser)
-            .Include(v => v.RouteVehicleQueues) // Kuyruk bilgisini dahil et
-            .Where(v => v.IsActive) // Sadece aktif araçlar
+            .Include(v => v.RouteVehicleQueues) 
+            .Where(v => v.IsActive) 
             .Select(v => new
             {
                 Vehicle = v,
