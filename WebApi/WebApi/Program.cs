@@ -6,6 +6,7 @@ using Koop.Entity.Entities;
 using Koop.Service.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.OpenApi.Models;
+using WebApi.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,19 +64,23 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(name: "AllowAll",
-                      policy =>
-                      {
-                          policy.AllowAnyOrigin()
-                                .AllowAnyHeader()
-                                .AllowAnyMethod();
-                      });
+    options.AddPolicy("AllowAll",
+         builder =>
+         {
+             builder
+                
+                 .WithOrigins("http://localhost:5173", "http://127.0.0.1:5173") 
+                 .AllowAnyHeader()
+                 .AllowAnyMethod()
+                 .AllowCredentials(); // SignalR için zorunlu
+         });
 });
 
 
 builder.Services.LoadServiceLayerExtension(builder.Configuration);
 builder.Services.LoadDataLayerExtension(builder.Configuration);
 
+builder.Services.AddSignalR();
 
 
 
@@ -90,31 +95,30 @@ using (var scope = app.Services.CreateScope())
         var userManager = services.GetRequiredService<UserManager<AppUser>>();
         var roleManager = services.GetRequiredService<RoleManager<AppRole>>();
 
-        // --- 1. Adým: Temel Roller oluþturuluyor ---
+        
         string[] roleNames = { "Admin", "User" };
         foreach (var roleName in roleNames)
         {
-            // Rol daha önce oluþturulmamýþsa, þimdi oluþtur.
             if (!await roleManager.RoleExistsAsync(roleName))
             {
                 await roleManager.CreateAsync(new AppRole { Name = roleName });
-                Console.WriteLine($"'{roleName}' rolü oluþturuldu."); // Bilgi mesajý
+                Console.WriteLine($"'{roleName}' rolü oluþturuldu."); 
             }
         }
 
-        // --- 2. Adým: Ýlk Admin Kullanýcýsý oluþturuluyor (eðer yoksa) ---
+       
         var adminUserName = "admin";
         var adminUser = await userManager.FindByNameAsync(adminUserName);
 
         if (adminUser == null)
         {
             AppUser newAdminUser = new AppUser { UserName = adminUserName };
-            // BU ÞÝFREYÝ MUTLAKA DEÐÝÞTÝRÝN VE GÜVENLÝ BÝR YERE NOT ALIN!
-            var result = await userManager.CreateAsync(newAdminUser, "GucluSifre123!");
+            
+            var result = await userManager.CreateAsync(newAdminUser, "admin123");
 
             if (result.Succeeded)
             {
-                // Kullanýcý baþarýyla oluþturulduysa, onu "Admin" rolüne ata
+             
                 await userManager.AddToRoleAsync(newAdminUser, "Admin");
                 Console.WriteLine($"'{adminUserName}' kullanýcýsý oluþturuldu ve 'Admin' rolü atandý.");
             }
@@ -144,5 +148,7 @@ app.UseAuthorization();
 
 
 app.MapControllers();
+
+app.MapHub<QueueHub>("/hubs/queue");
 
 app.Run();
