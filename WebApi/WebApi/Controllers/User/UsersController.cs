@@ -11,7 +11,7 @@ namespace WebApi.Controllers.User
 {
     [Route("api/[controller]")]
     [ApiController]
-    //[Authorize(Roles = "Admin")]
+    
     public class UsersController : ControllerBase
     {
         private readonly UserManager<AppUser> _userManager;

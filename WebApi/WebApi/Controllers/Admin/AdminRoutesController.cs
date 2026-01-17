@@ -1,34 +1,35 @@
-﻿using Koop.Data.Context; 
+﻿using Koop.Data.Context;
 using Koop.Entity.DTOs.Vehicle;
-using Koop.Entity.Entities; 
+using Koop.Entity.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR; // <-- YENİ EKLENDİ
 using Microsoft.EntityFrameworkCore;
-
+using WebApi.Hubs;
 
 [Route("api/admin/routes")]
 [ApiController]
-[Authorize(Roles = "Admin")] 
+[Authorize(Roles = "Admin")]
 public class AdminRoutesController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly IHubContext<QueueHub> _hubContext; // <-- YENİ EKLENDİ
 
-    public AdminRoutesController(AppDbContext context)
+    public AdminRoutesController(AppDbContext context, IHubContext<QueueHub> hubContext) // <-- YENİ EKLENDİ
     {
         _context = context;
+        _hubContext = hubContext; // <-- YENİ EKLENDİ
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAllRoutes()
     {
         var routes = await _context.Routes
-            .OrderBy(r => r.RouteName) 
+            .OrderBy(r => r.RouteName)
             .ToListAsync();
 
         return Ok(routes);
     }
-
-
 
     [HttpPost]
     public async Task<IActionResult> CreateRoute([FromBody] CreateRouteDto createRouteDto)
@@ -47,10 +48,12 @@ public class AdminRoutesController : ControllerBase
         _context.Routes.Add(route);
         await _context.SaveChangesAsync();
 
+        // --- SİNYAL GÖNDER ---
+        await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
+
         return CreatedAtAction(nameof(GetRouteById), new { id = route.Id }, route);
     }
 
-    
     [HttpGet("{id}")]
     public async Task<IActionResult> GetRouteById(long id)
     {
@@ -62,7 +65,6 @@ public class AdminRoutesController : ControllerBase
         return Ok(route);
     }
 
-    
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateRoute(long id, [FromBody] UpdateRouteDto updateRouteDto)
     {
@@ -76,10 +78,13 @@ public class AdminRoutesController : ControllerBase
         route.IsActive = updateRouteDto.IsActive;
 
         await _context.SaveChangesAsync();
+
+        // --- SİNYAL GÖNDER ---
+        await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
+
         return NoContent();
     }
 
-    
     [HttpPatch("{id}/set-active")]
     public async Task<IActionResult> SetRouteActiveStatus(long id, [FromBody] SetActiveDto setActiveDto)
     {
@@ -92,10 +97,12 @@ public class AdminRoutesController : ControllerBase
         route.IsActive = setActiveDto.IsActive;
         await _context.SaveChangesAsync();
 
+        // --- SİNYAL GÖNDER ---
+        await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
+
         return NoContent();
     }
 
-   
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteRoute(long id)
     {
@@ -106,6 +113,9 @@ public class AdminRoutesController : ControllerBase
         }
         _context.Routes.Remove(route);
         await _context.SaveChangesAsync();
+
+        // --- SİNYAL GÖNDER ---
+        await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
 
         return NoContent();
     }
