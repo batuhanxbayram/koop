@@ -1,0 +1,29 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [ "main", "master" ] # Ana dalın hangisiyse (main veya master)
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kodları Çek
+        uses: actions/checkout@v3
+
+      - name: Docker Hub'a Giriş Yap
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Paketle ve Gönder (Backend)
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          # DİKKAT: Dockerfile'ının tam yolu burası olmalı.
+          # Eğer proje yapın "WebApi/WebApi/Dockerfile" ise böyle kalsın.
+          # Eğer ana dizindeyse sadece "Dockerfile" yaz.
+          file: WebApi/WebApi/Dockerfile 
+          push: true
+          tags: batuhanxbayram1/koop-api:latest

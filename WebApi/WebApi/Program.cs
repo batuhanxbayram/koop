@@ -68,8 +68,13 @@ builder.Services.AddCors(options =>
          builder =>
          {
              builder
-                
-                 .WithOrigins("http://localhost:5173", "http://127.0.0.1:5173") 
+
+                 .WithOrigins(
+                    "http://localhost:5173",  
+                    "http://localhost:5174",
+                    "http://72.62.114.221",  
+                    "http://72.62.114.221:80"
+                 )
                  .AllowAnyHeader()
                  .AllowAnyMethod()
                  .AllowCredentials(); // SignalR için zorunlu
@@ -106,13 +111,13 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
-       
+        var fullName = "admin";
         var adminUserName = "admin";
         var adminUser = await userManager.FindByNameAsync(adminUserName);
 
         if (adminUser == null)
         {
-            AppUser newAdminUser = new AppUser { UserName = adminUserName };
+            AppUser newAdminUser = new AppUser { UserName = adminUserName ,FullName=fullName};
             
             var result = await userManager.CreateAsync(newAdminUser, "admin123");
 
@@ -133,14 +138,13 @@ using (var scope = app.Services.CreateScope())
 
 
 
-if (app.Environment.IsDevelopment())
-{
+
     app.UseSwagger();
     app.UseSwaggerUI();
-}
+
 
 app.UseCors("AllowAll");
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 
 
 app.UseAuthentication();
