@@ -62,6 +62,44 @@ namespace WebApi.Controllers.User
             return Ok(users);
         }
 
+        [HttpPost("create-pool-user")]
+        public async Task<IActionResult> CreatePoolUser([FromServices] UserManager<AppUser> userManager)
+        {
+            // 1. Kullanıcının var olup olmadığını kontrol et (Çift kaydı önlemek için)
+            var existingUser = await userManager.FindByNameAsync("sistem_havuz");
+            if (existingUser != null)
+            {
+                return Ok(new { message = "Bu kullanıcı zaten var!", userId = existingUser.Id });
+            }
+
+            // 2. Yeni kullanıcı nesnesini oluştur
+            var poolUser = new AppUser
+            {
+                UserName = "sistem_havuz",
+                Email = "havuz@75ymkt.com", 
+                EmailConfirmed = true,
+                FullName = "Sistem Aktarım",
+               
+            };
+
+            // 3. Kullanıcıyı güçlü bir şifre ile Identity üzerinden kaydet
+            // Şifre kurallarına takılmamak için büyük/küçük harf, rakam ve özel karakter içeren bir şifre veriyoruz
+            var result = await userManager.CreateAsync(poolUser, "HavuzUser.123456!");
+
+            if (result.Succeeded)
+            {
+                // Başarılı olursa bize oluşturulan GUID'i (Id) dönecek
+                return Ok(new
+                {
+                    message = "Havuz kullanıcı başarıyla oluşturuldu!",
+                    userId = poolUser.Id
+                });
+            }
+
+            // Hata olursa Identity hatalarını listele
+            return BadRequest(result.Errors);
+        }
+
 
 
         [Authorize(Roles = "Admin")]
