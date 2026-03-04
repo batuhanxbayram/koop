@@ -23,6 +23,53 @@ public class AdminRoutesController : ControllerBase
         _hubContext = hubContext; // <-- YENİ EKLENDİ
         this.userManager = userManager;
     }
+    // POST: api/routes/{routeId}/import-queue
+    [HttpPost("{routeId}/import-queue")]
+    public async Task<IActionResult> ImportQueue(int routeId, [FromBody] ImportQueueDto request)
+    {
+        // Havuz kullanıcımızın ID'si (Veritabanından baktığın ID'yi buraya yaz)
+        int havuzUserId = 1;
+
+        // 1. Plakadaki boşlukları silip büyük harfe çevirelim (Eşleşme kolay olsun)
+        var cleanedPlate = request.LicensePlate.Replace(" ", "").ToUpper();
+
+        // 2. Bu plaka sistemimizde kayıtlı mı?
+        var vehicle = await _context.Vehicles
+            .FirstOrDefaultAsync(v => v.LicensePlate.Replace(" ", "").ToUpper() == cleanedPlate);
+
+        // 3. Sistemde kayıtlı değilse, YOK SAYMA! Havuz kullanıcıya bağlayarak oluştur.
+        if (vehicle == null)
+        {
+            vehicle = new Vehicle
+            {
+                LicensePlate = request.LicensePlate, // Orijinal halini kaydet (Örn: 41 ABC 123)
+                Id = havuzUserId
+            };
+            _context.Vehicles.Add(vehicle);
+            await _context.SaveChangesAsync(); // Araç artık sistemde var ve ID'si oluştu
+        }
+
+        // 4. Aracı ilgili güzergahın kuyruğuna ekle
+        var queueItem = new RouteVehicleQueue
+        {
+            RouteId = routeId,
+            VehicleId = vehicle.Id,
+            // İstersen request'ten gelen "Sira" bilgisini de buraya kaydedebilirsin
+        };
+
+        _context.RouteVehicleQueues.Add(queueItem);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = $"{request.LicensePlate} başarıyla eklendi." });
+    }
+
+    // DTO Sınıfı
+    public class ImportQueueDto
+    {
+        public string LicensePlate { get; set; }
+        public int Sira { get; set; }
+    }
+
 
     [HttpGet]
     public async Task<IActionResult> GetAllRoutes()
