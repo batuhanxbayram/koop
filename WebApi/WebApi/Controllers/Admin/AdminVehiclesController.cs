@@ -93,7 +93,14 @@ public class AdminVehiclesController : ControllerBase
         };
 
         _context.Vehicles.Add(vehicle);
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            return StatusCode(500, new { Message = "Araç kaydedilemedi. Veritabanı kullanıcı-araç kısıtları güncel değil olabilir. Lütfen yönetici ile iletişime geçin." });
+        }
 
         var vehicleDto = new VehicleDto
         {
@@ -169,20 +176,86 @@ public class AdminVehiclesController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateVehicle(long id, [FromBody] UpdateVehicleDto updateVehicleDto)
     {
-        var vehicle = await _context.Vehicles.FindAsync(id);
+        var vehicle = await _context.Vehicles
+            .Include(v => v.AppUser)
+            .FirstOrDefaultAsync(v => v.Id == id);
         if (vehicle == null)
         {
             return NotFound("Güncellenecek araç bulunamadı.");
         }
+
+        AppUser? user = null;
+        if (updateVehicleDto.AppUserId.HasValue)
+        {
+            user = await _context.Users.FindAsync(updateVehicleDto.AppUserId.Value);
+            if (user == null)
+            {
+                return BadRequest(new { Message = "Belirtilen kullanıcı bulunamadı." });
+            }
+        }
+
+        vehicle.AppUserId = updateVehicleDto.AppUserId;
         vehicle.LicensePlate = updateVehicleDto.LicensePlate;
         vehicle.PhoneNumber = updateVehicleDto.PhoneNumber;
+        vehicle.DriverName = user != null ? user.FullName : "Atanmadı";
         vehicle.IsActive = updateVehicleDto.IsActive;
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            return StatusCode(500, new { Message = "Araç güncellenemedi. Veritabanı kullanıcı-araç kısıtları güncel değil olabilir. Lütfen yönetici ile iletişime geçin." });
+        }
 
         // --- SİNYAL GÖNDER ---
         await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
 
         return NoContent();
+    }
+
+    [HttpPatch("{id}/assign-user")]
+    public async Task<IActionResult> AssignUserToVehicle(long id, [FromBody] AssignVehicleUserDto dto)
+    {
+        var vehicle = await _context.Vehicles.FindAsync(id);
+        if (vehicle == null)
+        {
+            return NotFound("Araç bulunamadı.");
+        }
+
+        AppUser? user = null;
+        if (dto.AppUserId.HasValue)
+        {
+            user = await _context.Users.FindAsync(dto.AppUserId.Value);
+            if (user == null)
+            {
+                return BadRequest(new { Message = "Belirtilen kullanıcı bulunamadı." });
+            }
+        }
+
+        vehicle.AppUserId = dto.AppUserId;
+        vehicle.DriverName = user != null ? user.FullName : "Atanmadı";
+
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            return StatusCode(500, new { Message = "Araç kullanıcı ataması güncellenemedi. Veritabanı kullanıcı-araç kısıtları güncel değil olabilir. Lütfen yönetici ile iletişime geçin." });
+        }
+        await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
+
+        return Ok(new VehicleDto
+        {
+            Id = vehicle.Id,
+            LicensePlate = vehicle.LicensePlate,
+            DriverName = vehicle.DriverName,
+            PhoneNumber = vehicle.PhoneNumber,
+            IsActive = vehicle.IsActive,
+            AppUserId = vehicle.AppUserId,
+            UserFullName = user != null ? user.FullName : "Atanmadı"
+        });
     }
 
     [HttpPatch("{id}/set-active")]

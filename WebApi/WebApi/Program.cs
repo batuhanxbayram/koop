@@ -5,6 +5,7 @@ using Koop.Data.Extensions;
 using Koop.Entity.Entities;
 using Koop.Service.Extensions;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using WebApi.Hubs;
 
@@ -81,7 +82,40 @@ builder.Services.AddCors(options =>
                  )
                  .AllowAnyHeader()
                  .AllowAnyMethod()
-                 .AllowCredentials(); // SignalR için zorunlu
+        var dbContext = services.GetRequiredService<AppDbContext>();
+
+        await dbContext.Database.ExecuteSqlRawAsync(@"
+IF EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IX_Vehicles_AppUserId'
+      AND object_id = OBJECT_ID('Vehicles')
+      AND is_unique = 1
+)
+BEGIN
+    DROP INDEX [IX_Vehicles_AppUserId] ON [Vehicles];
+    CREATE INDEX [IX_Vehicles_AppUserId] ON [Vehicles]([AppUserId]) WHERE [AppUserId] IS NOT NULL;
+END
+");
+
+        await dbContext.Database.ExecuteSqlRawAsync(@"
+IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Vehicles_AspNetUsers_AppUserId1')
+BEGIN
+    ALTER TABLE [Vehicles] DROP CONSTRAINT [FK_Vehicles_AspNetUsers_AppUserId1];
+END
+
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Vehicles_AppUserId1' AND object_id = OBJECT_ID('Vehicles'))
+BEGIN
+    DROP INDEX [IX_Vehicles_AppUserId1] ON [Vehicles];
+END
+
+IF COL_LENGTH('Vehicles', 'AppUserId1') IS NOT NULL
+BEGIN
+    ALTER TABLE [Vehicles] DROP COLUMN [AppUserId1];
+END
+");
+
+                 .AllowCredentials(); // SignalR iÃ§in zorunlu
          });
 });
 
@@ -111,7 +145,7 @@ using (var scope = app.Services.CreateScope())
             if (!await roleManager.RoleExistsAsync(roleName))
             {
                 await roleManager.CreateAsync(new AppRole { Name = roleName });
-                Console.WriteLine($"'{roleName}' rolü oluþturuldu."); 
+                Console.WriteLine($"'{roleName}' rolÃ¼ oluÃ¾turuldu."); 
             }
         }
 
@@ -129,14 +163,14 @@ using (var scope = app.Services.CreateScope())
             {
              
                 await userManager.AddToRoleAsync(newAdminUser, "Admin");
-                Console.WriteLine($"'{adminUserName}' kullanýcýsý oluþturuldu ve 'Admin' rolü atandý.");
+                Console.WriteLine($"'{adminUserName}' kullanÃ½cÃ½sÃ½ oluÃ¾turuldu ve 'Admin' rolÃ¼ atandÃ½.");
             }
         }
     }
     catch (Exception ex)
     {
-        // Hata durumunda konsola yazdýrma
-        Console.WriteLine("Veritabaný tohumlama sýrasýnda bir hata oluþtu: " + ex.Message);
+        // Hata durumunda konsola yazdÃ½rma
+        Console.WriteLine("VeritabanÃ½ tohumlama sÃ½rasÃ½nda bir hata oluÃ¾tu: " + ex.Message);
     }
 }
 
