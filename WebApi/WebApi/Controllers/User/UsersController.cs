@@ -198,6 +198,11 @@ namespace WebApi.Controllers.User
         // [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserDto createUserDto)
         {
+            if (!ModelState.IsValid)
+            {
+                return ValidationProblem(ModelState);
+            }
+
             var userExists = await _userManager.FindByNameAsync(createUserDto.UserName);
             if (userExists != null)
             {
@@ -251,7 +256,13 @@ namespace WebApi.Controllers.User
             }
             // --- MANTIK BİTTİ ---
 
-            var createdUserDto = new UserVehicleDto { /* ... */ };
+            var createdUserDto = new UserVehicleDto
+            {
+                Id = user.Id,
+                FullName = user.FullName,
+                LicensePlate = "-",
+                PhoneNumber = "-"
+            };
             return Ok(createdUserDto);
         }
     }
