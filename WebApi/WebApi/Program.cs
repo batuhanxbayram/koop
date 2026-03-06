@@ -1,6 +1,4 @@
 using Koop.Data.Context;
-// Replace the obsolete method call with the updated method or logic.  
-// Assuming there is a new method `LoadServiceLayer` to replace the obsolete `LoadServiceLayerExtension`.
 using Koop.Data.Extensions;
 using Koop.Entity.Entities;
 using Koop.Service.Extensions;
@@ -11,11 +9,10 @@ using WebApi.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
-
+// --- SERVICES ---
 builder.Services.AddControllers();
-
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSignalR();
 
 builder.Services.AddIdentity<AppUser, AppRole>(opt =>
 {
@@ -30,27 +27,9 @@ builder.Services.AddIdentity<AppUser, AppRole>(opt =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
-
-
-
-
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo() { Title = "KoopApi", Version = "v1", Description = "KoopApiClient" });
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement()
-        {
-            {
-                new OpenApiSecurityScheme
-                {
-                    Reference = new OpenApiReference
-                    {
-                        Type = ReferenceType.SecurityScheme,
-                        Id = "Bearer"
-                    }
-                },
-                Array.Empty<string>()
-            }
-        });
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
     {
         Name = "Authorization",
@@ -59,73 +38,37 @@ builder.Services.AddSwaggerGen(c =>
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
     });
-}
-    );
-
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
-         builder =>
-         {
-             builder
-
-                 .WithOrigins(
-                    "http://localhost:5173",  
-                    "http://localhost:5174",
-                    "http://72.62.114.221",  
-                    "http://72.62.114.221:80",
-                    "http://75ymkt.com",      
-                    "http://www.75ymkt.com",
-                    "https://75ymkt.com",
-                    "https://www.75ymkt.com"
-                 )
-                 .AllowAnyHeader()
-                 .AllowAnyMethod()
-        var dbContext = services.GetRequiredService<AppDbContext>();
-
-        await dbContext.Database.ExecuteSqlRawAsync(@"
-IF EXISTS (
-    SELECT 1
-    FROM sys.indexes
-    WHERE name = 'IX_Vehicles_AppUserId'
-      AND object_id = OBJECT_ID('Vehicles')
-      AND is_unique = 1
-)
-BEGIN
-    DROP INDEX [IX_Vehicles_AppUserId] ON [Vehicles];
-    CREATE INDEX [IX_Vehicles_AppUserId] ON [Vehicles]([AppUserId]) WHERE [AppUserId] IS NOT NULL;
-END
-");
-
-        await dbContext.Database.ExecuteSqlRawAsync(@"
-IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Vehicles_AspNetUsers_AppUserId1')
-BEGIN
-    ALTER TABLE [Vehicles] DROP CONSTRAINT [FK_Vehicles_AspNetUsers_AppUserId1];
-END
-
-IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Vehicles_AppUserId1' AND object_id = OBJECT_ID('Vehicles'))
-BEGIN
-    DROP INDEX [IX_Vehicles_AppUserId1] ON [Vehicles];
-END
-
-IF COL_LENGTH('Vehicles', 'AppUserId1') IS NOT NULL
-BEGIN
-    ALTER TABLE [Vehicles] DROP COLUMN [AppUserId1];
-END
-");
-
-                 .AllowCredentials(); // SignalR için zorunlu
-         });
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:5173",
+                "http://localhost:5174",
+                "http://72.62.114.221",
+                "http://75ymkt.com",
+                "https://75ymkt.com"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials(); // SignalR için gerekli
+    });
 });
-
 
 builder.Services.LoadServiceLayerExtension(builder.Configuration);
 builder.Services.LoadDataLayerExtension(builder.Configuration);
-
-builder.Services.AddSignalR();
-
-
 
 var app = builder.Build();
 
@@ -133,64 +76,81 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var dbContext = services.GetRequiredService<AppDbContext>();
+
     try
     {
+
+
+        await dbContext.Database.MigrateAsync();
+        // 1. HAYALET KOLONLARI TEMİZLE (AppUserId1 Hatası İçin)
+        // Bu işlemi async metodun içinde senkron çalıştırıyoruz çünkü Program.cs akışındayız.
+        dbContext.Database.ExecuteSqlRaw(@"
+            IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Vehicles_AspNetUsers_AppUserId1')
+            BEGIN
+                ALTER TABLE [Vehicles] DROP CONSTRAINT [FK_Vehicles_AspNetUsers_AppUserId1];
+            END
+
+            IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Vehicles_AppUserId1' AND object_id = OBJECT_ID('Vehicles'))
+            BEGIN
+                DROP INDEX [IX_Vehicles_AppUserId1] ON [Vehicles];
+            END
+
+            IF COL_LENGTH('Vehicles', 'AppUserId1') IS NOT NULL
+            BEGIN
+                ALTER TABLE [Vehicles] DROP COLUMN [AppUserId1];
+            END
+
+            IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Vehicles_AppUserId' AND object_id = OBJECT_ID('Vehicles') AND is_unique = 1)
+            BEGIN
+                DROP INDEX [IX_Vehicles_AppUserId] ON [Vehicles];
+                CREATE INDEX [IX_Vehicles_AppUserId] ON [Vehicles]([AppUserId]) WHERE [AppUserId] IS NOT NULL;
+            END
+        ");
+
+
         var userManager = services.GetRequiredService<UserManager<AppUser>>();
         var roleManager = services.GetRequiredService<RoleManager<AppRole>>();
 
-        
         string[] roleNames = { "Admin", "User" };
         foreach (var roleName in roleNames)
         {
-            if (!await roleManager.RoleExistsAsync(roleName))
+            if (!roleManager.RoleExistsAsync(roleName).GetAwaiter().GetResult())
             {
-                await roleManager.CreateAsync(new AppRole { Name = roleName });
-                Console.WriteLine($"'{roleName}' rolü oluþturuldu."); 
+                roleManager.CreateAsync(new AppRole { Name = roleName }).GetAwaiter().GetResult();
             }
         }
 
-        var fullName = "admin";
         var adminUserName = "admin";
-        var adminUser = await userManager.FindByNameAsync(adminUserName);
+        var adminUser = userManager.FindByNameAsync(adminUserName).GetAwaiter().GetResult();
 
         if (adminUser == null)
         {
-            AppUser newAdminUser = new AppUser { UserName = adminUserName ,FullName=fullName};
-            
-            var result = await userManager.CreateAsync(newAdminUser, "admin123");
+            var newAdminUser = new AppUser { UserName = adminUserName, FullName = "admin", Email = "admin@koop.com", EmailConfirmed = true };
+            var result = userManager.CreateAsync(newAdminUser, "admin123").GetAwaiter().GetResult();
 
             if (result.Succeeded)
             {
-             
-                await userManager.AddToRoleAsync(newAdminUser, "Admin");
-                Console.WriteLine($"'{adminUserName}' kullanýcýsý oluþturuldu ve 'Admin' rolü atandý.");
+                userManager.AddToRoleAsync(newAdminUser, "Admin").GetAwaiter().GetResult();
             }
         }
     }
     catch (Exception ex)
     {
-        // Hata durumunda konsola yazdýrma
-        Console.WriteLine("Veritabaný tohumlama sýrasýnda bir hata oluþtu: " + ex.Message);
+        Console.WriteLine("Veritabanı işlemleri sırasında hata: " + ex.Message);
     }
 }
 
 
-
-
-    app.UseSwagger();
-    app.UseSwaggerUI();
-
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseCors("AllowAll");
-// app.UseHttpsRedirection();
-
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-
 app.MapControllers();
-
 app.MapHub<QueueHub>("/hubs/queue");
 
 app.Run();

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Koop.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250921080014_dataseed")]
-    partial class dataseed
+    [Migration("20260306134810_vehicle")]
+    partial class vehicle
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -131,37 +131,37 @@ namespace Koop.Data.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("c62ec918-bda2-49ee-a9c3-98bd2a6fa34b"),
+                            Id = new Guid("c15ae46b-92d2-4fb5-8ca1-2310b8714d20"),
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "4590ae97-78e4-4808-aece-70580353ffbd",
+                            ConcurrencyStamp = "25034a81-ce15-47b6-bf3b-c9c2783bc40e",
                             Email = "ahmet.yilmaz@example.com",
                             EmailConfirmed = true,
                             FullName = "Ahmet Yılmaz",
                             LockoutEnabled = false,
                             NormalizedEmail = "AHMET.YILMAZ@EXAMPLE.COM",
                             NormalizedUserName = "AHMET.YILMAZ",
-                            PasswordHash = "AQAAAAIAAYagAAAAEMpn8uoCWp/bMSRdzDdF+reUrLnUiRkXnZ8Fq3OVcSnk+0lKn8E3ZsBI6Y6l1jxJNg==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEBYKjeAlprkqEis83y8Jooz+3+OhsV93F5KNiPegnFCmUgOdfH1CmUAUYMSms7NRTA==",
                             PhoneNumberConfirmed = false,
                             RefreshTokenExpireTime = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            SecurityStamp = "749cc26c-4c57-4ec3-8641-4721626a5bb8",
+                            SecurityStamp = "32827f07-29e0-4f78-80d5-02d56aaa30b8",
                             TwoFactorEnabled = false,
                             UserName = "ahmet.yilmaz"
                         },
                         new
                         {
-                            Id = new Guid("1410bcb8-deec-475f-8db4-31c538f9c3a4"),
+                            Id = new Guid("3e3b7877-9587-41f5-8f26-368729074ff8"),
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "a50f0218-4e18-4530-9f24-654ba7d91403",
+                            ConcurrencyStamp = "e1638d0c-6690-4a16-8e9a-a3ca24d02433",
                             Email = "ayse.kaya@example.com",
                             EmailConfirmed = true,
                             FullName = "Ayşe Kaya",
                             LockoutEnabled = false,
                             NormalizedEmail = "AYSE.KAYA@EXAMPLE.COM",
                             NormalizedUserName = "AYSE.KAYA",
-                            PasswordHash = "AQAAAAIAAYagAAAAEJXgW14WJfVKzsIscwcAITIJzW8bCXSmoKIylrL2lqt2ft6Q8XBir1vnA36XhXNOFQ==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEOKOz6hf2rjmgwdJk4oQo0gG+qCvIqU15wf31UZv1/Rb5pFZoFe1xnfBafZGVirVaQ==",
                             PhoneNumberConfirmed = false,
                             RefreshTokenExpireTime = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            SecurityStamp = "508bb090-546f-43af-87ad-05c24c6701b0",
+                            SecurityStamp = "9b32bfbe-69da-4fa3-9efe-d49882223bcc",
                             TwoFactorEnabled = false,
                             UserName = "ayse.kaya"
                         });
@@ -241,21 +241,21 @@ namespace Koop.Data.Migrations
                         new
                         {
                             Id = 1L,
-                            QueueTimestamp = new DateTime(2025, 9, 21, 6, 0, 13, 715, DateTimeKind.Utc).AddTicks(1847),
+                            QueueTimestamp = new DateTime(2026, 3, 6, 11, 48, 10, 506, DateTimeKind.Utc).AddTicks(1539),
                             RouteId = 1L,
                             VehicleId = 1L
                         },
                         new
                         {
                             Id = 2L,
-                            QueueTimestamp = new DateTime(2025, 9, 21, 7, 0, 13, 715, DateTimeKind.Utc).AddTicks(1855),
+                            QueueTimestamp = new DateTime(2026, 3, 6, 12, 48, 10, 506, DateTimeKind.Utc).AddTicks(1547),
                             RouteId = 1L,
                             VehicleId = 2L
                         },
                         new
                         {
                             Id = 3L,
-                            QueueTimestamp = new DateTime(2025, 9, 21, 8, 0, 13, 715, DateTimeKind.Utc).AddTicks(1857),
+                            QueueTimestamp = new DateTime(2026, 3, 6, 13, 48, 10, 506, DateTimeKind.Utc).AddTicks(1548),
                             RouteId = 2L,
                             VehicleId = 1L
                         });
@@ -269,7 +269,7 @@ namespace Koop.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
-                    b.Property<Guid>("AppUserId")
+                    b.Property<Guid?>("AppUserId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("DriverName")
@@ -290,11 +290,7 @@ namespace Koop.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AppUserId")
-                        .IsUnique();
-
-                    b.HasIndex("LicensePlate")
-                        .IsUnique();
+                    b.HasIndex("AppUserId");
 
                     b.ToTable("Vehicles");
 
@@ -302,7 +298,7 @@ namespace Koop.Data.Migrations
                         new
                         {
                             Id = 1L,
-                            AppUserId = new Guid("c62ec918-bda2-49ee-a9c3-98bd2a6fa34b"),
+                            AppUserId = new Guid("c15ae46b-92d2-4fb5-8ca1-2310b8714d20"),
                             DriverName = "Ahmet Yılmaz",
                             IsActive = true,
                             LicensePlate = "34 ABC 123",
@@ -311,7 +307,7 @@ namespace Koop.Data.Migrations
                         new
                         {
                             Id = 2L,
-                            AppUserId = new Guid("1410bcb8-deec-475f-8db4-31c538f9c3a4"),
+                            AppUserId = new Guid("3e3b7877-9587-41f5-8f26-368729074ff8"),
                             DriverName = "Mehmet Öztürk",
                             IsActive = true,
                             LicensePlate = "35 DEF 456",
@@ -444,10 +440,8 @@ namespace Koop.Data.Migrations
             modelBuilder.Entity("Koop.Entity.Entities.Vehicle", b =>
                 {
                     b.HasOne("Koop.Entity.Entities.AppUser", "AppUser")
-                        .WithOne("Vehicle")
-                        .HasForeignKey("Koop.Entity.Entities.Vehicle", "AppUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .WithMany("Vehicles")
+                        .HasForeignKey("AppUserId");
 
                     b.Navigation("AppUser");
                 });
@@ -505,8 +499,7 @@ namespace Koop.Data.Migrations
 
             modelBuilder.Entity("Koop.Entity.Entities.AppUser", b =>
                 {
-                    b.Navigation("Vehicle")
-                        .IsRequired();
+                    b.Navigation("Vehicles");
                 });
 
             modelBuilder.Entity("Koop.Entity.Entities.Route", b =>
