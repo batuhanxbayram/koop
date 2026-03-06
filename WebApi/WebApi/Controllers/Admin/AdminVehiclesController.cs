@@ -93,7 +93,14 @@ public class AdminVehiclesController : ControllerBase
         };
 
         _context.Vehicles.Add(vehicle);
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            return StatusCode(500, new { Message = "Araç kaydedilemedi. Veritabanı kullanıcı-araç kısıtları güncel değil olabilir. Lütfen yönetici ile iletişime geçin." });
+        }
 
         var vehicleDto = new VehicleDto
         {
@@ -192,7 +199,14 @@ public class AdminVehiclesController : ControllerBase
         vehicle.PhoneNumber = updateVehicleDto.PhoneNumber;
         vehicle.DriverName = user != null ? user.FullName : "Atanmadı";
         vehicle.IsActive = updateVehicleDto.IsActive;
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            return StatusCode(500, new { Message = "Araç güncellenemedi. Veritabanı kullanıcı-araç kısıtları güncel değil olabilir. Lütfen yönetici ile iletişime geçin." });
+        }
 
         // --- SİNYAL GÖNDER ---
         await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
@@ -222,7 +236,14 @@ public class AdminVehiclesController : ControllerBase
         vehicle.AppUserId = dto.AppUserId;
         vehicle.DriverName = user != null ? user.FullName : "Atanmadı";
 
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            return StatusCode(500, new { Message = "Araç kullanıcı ataması güncellenemedi. Veritabanı kullanıcı-araç kısıtları güncel değil olabilir. Lütfen yönetici ile iletişime geçin." });
+        }
         await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
 
         return Ok(new VehicleDto

@@ -58,7 +58,6 @@ namespace WebApi.Controllers.User
         {
             var users = await context.Users
                 .AsNoTracking()
-                .Where(u => !u.Vehicles.Any())
                 .Select(u => new UserVehicleDto
                 {
                     Id = u.Id,
