@@ -9,6 +9,8 @@ namespace Koop.Entity.DTOs.Vehicle
 {
     public class UpdateVehicleDto
     {
+        public Guid? AppUserId { get; set; }
+
         [Required]
         [StringLength(20)]
         public string LicensePlate { get; set; }

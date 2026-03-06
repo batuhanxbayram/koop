@@ -13,6 +13,8 @@ namespace Koop.Entity.DTOs.User
         [StringLength(50, MinimumLength = 3, ErrorMessage = "Kullanıcı adı 3 ile 50 karakter arasında olmalıdır.")]
         public string UserName { get; set; }
 
+        [Required(ErrorMessage = "Tam ad zorunludur.")]
+        [StringLength(100)]
         public string FullName { get; set; }
         
         [Required(ErrorMessage = "Şifre zorunludur.")]
