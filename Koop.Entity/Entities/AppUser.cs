@@ -17,6 +17,8 @@ namespace Koop.Entity.Entities
 
         public Vehicle Vehicle { get; set; }
 
+        public ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
+
     }
 
 

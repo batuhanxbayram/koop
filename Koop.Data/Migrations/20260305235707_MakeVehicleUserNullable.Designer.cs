@@ -4,6 +4,7 @@ using Koop.Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Koop.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260305235707_MakeVehicleUserNullable")]
+    partial class MakeVehicleUserNullable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -128,37 +131,37 @@ namespace Koop.Data.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("c2ae243e-7dec-4119-8690-68df77a864fc"),
+                            Id = new Guid("c7523f28-cc68-4aa7-9356-1fa9fed71cff"),
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "1b051173-d14b-4735-927a-04aa06e65534",
+                            ConcurrencyStamp = "1acb2615-3017-4e89-97e1-da061bf92249",
                             Email = "ahmet.yilmaz@example.com",
                             EmailConfirmed = true,
                             FullName = "Ahmet Yılmaz",
                             LockoutEnabled = false,
                             NormalizedEmail = "AHMET.YILMAZ@EXAMPLE.COM",
                             NormalizedUserName = "AHMET.YILMAZ",
-                            PasswordHash = "AQAAAAIAAYagAAAAEGfD0TmH8QCCh5tk1E4KFLzncBOptnHTClOWn26COXZXsg/flpQ8/HLROnG572KCiQ==",
+                            PasswordHash = "AQAAAAIAAYagAAAAED2POlR88vUsjqaRcX3dUKO89gab4cPhBxAZbtq4/zEsNbVkUHcQZJmxdYLc7zwThg==",
                             PhoneNumberConfirmed = false,
                             RefreshTokenExpireTime = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            SecurityStamp = "e5c6e4e2-453b-4a08-8f53-5996ca9a08af",
+                            SecurityStamp = "1d605d60-3f00-49d3-a627-d926ad61bfed",
                             TwoFactorEnabled = false,
                             UserName = "ahmet.yilmaz"
                         },
                         new
                         {
-                            Id = new Guid("dd9534a4-0709-416d-9fcf-865a9589bf44"),
+                            Id = new Guid("8887f80e-c437-4e02-9654-3e736ebfd67e"),
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "281bbca7-4f8e-475c-baa5-c24658157c0e",
+                            ConcurrencyStamp = "d1a90276-ccbe-447c-b341-d0ee8b47d455",
                             Email = "ayse.kaya@example.com",
                             EmailConfirmed = true,
                             FullName = "Ayşe Kaya",
                             LockoutEnabled = false,
                             NormalizedEmail = "AYSE.KAYA@EXAMPLE.COM",
                             NormalizedUserName = "AYSE.KAYA",
-                            PasswordHash = "AQAAAAIAAYagAAAAENS00t6A8FaogqtB1OYO1jWOn8ZS+rzdcFQ6fFSvWyRqYkluz130Rn1s/00B2f21IQ==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEIHSVx3FNsVhl83k3R1as2wqRjDy01BM4AO2MRwt4U2ooinMcjf1yJXCczlpW8YR9g==",
                             PhoneNumberConfirmed = false,
                             RefreshTokenExpireTime = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            SecurityStamp = "885a9c58-1bb0-4b12-9e14-4f0897e7357d",
+                            SecurityStamp = "4f6f0d56-67ff-463d-adb1-d64ea1ec713c",
                             TwoFactorEnabled = false,
                             UserName = "ayse.kaya"
                         });
@@ -238,21 +241,21 @@ namespace Koop.Data.Migrations
                         new
                         {
                             Id = 1L,
-                            QueueTimestamp = new DateTime(2026, 3, 5, 22, 8, 29, 814, DateTimeKind.Utc).AddTicks(4812),
+                            QueueTimestamp = new DateTime(2026, 3, 5, 21, 57, 7, 330, DateTimeKind.Utc).AddTicks(3174),
                             RouteId = 1L,
                             VehicleId = 1L
                         },
                         new
                         {
                             Id = 2L,
-                            QueueTimestamp = new DateTime(2026, 3, 5, 23, 8, 29, 814, DateTimeKind.Utc).AddTicks(4819),
+                            QueueTimestamp = new DateTime(2026, 3, 5, 22, 57, 7, 330, DateTimeKind.Utc).AddTicks(3181),
                             RouteId = 1L,
                             VehicleId = 2L
                         },
                         new
                         {
                             Id = 3L,
-                            QueueTimestamp = new DateTime(2026, 3, 6, 0, 8, 29, 814, DateTimeKind.Utc).AddTicks(4821),
+                            QueueTimestamp = new DateTime(2026, 3, 5, 23, 57, 7, 330, DateTimeKind.Utc).AddTicks(3182),
                             RouteId = 2L,
                             VehicleId = 1L
                         });
@@ -305,7 +308,7 @@ namespace Koop.Data.Migrations
                         new
                         {
                             Id = 1L,
-                            AppUserId = new Guid("c2ae243e-7dec-4119-8690-68df77a864fc"),
+                            AppUserId = new Guid("c7523f28-cc68-4aa7-9356-1fa9fed71cff"),
                             DriverName = "Ahmet Yılmaz",
                             IsActive = true,
                             LicensePlate = "34 ABC 123",
@@ -314,7 +317,7 @@ namespace Koop.Data.Migrations
                         new
                         {
                             Id = 2L,
-                            AppUserId = new Guid("dd9534a4-0709-416d-9fcf-865a9589bf44"),
+                            AppUserId = new Guid("8887f80e-c437-4e02-9654-3e736ebfd67e"),
                             DriverName = "Mehmet Öztürk",
                             IsActive = true,
                             LicensePlate = "35 DEF 456",

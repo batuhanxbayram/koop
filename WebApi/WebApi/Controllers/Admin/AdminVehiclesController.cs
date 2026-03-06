@@ -53,10 +53,11 @@ public class AdminVehiclesController : ControllerBase
             {
                 Id = v.Id,
                 LicensePlate = v.LicensePlate,
-                DriverName = v.AppUser.FullName,
+               
+                DriverName = v.AppUser != null ? v.AppUser.FullName : "Atanmadı",
                 PhoneNumber = v.PhoneNumber,
                 IsActive = v.IsActive,
-                AppUserId = v.AppUserId,
+                AppUserId = v.AppUserId, 
             })
             .ToListAsync();
 
@@ -71,17 +72,22 @@ public class AdminVehiclesController : ControllerBase
             return BadRequest(new { Message = "Bu plaka zaten kayıtlı." });
         }
 
-        var user = await _context.Users.FindAsync(createVehicleDto.AppUserId);
-        if (user == null)
+        // 🟢 DİKKAT: Eğer istekte bir AppUserId geldiyse kullanıcıyı bul.
+        AppUser user = null;
+        if (createVehicleDto.AppUserId.HasValue)
         {
-            return BadRequest(new { Message = "Belirtilen kullanıcı bulunamadı." });
+            user = await _context.Users.FindAsync(createVehicleDto.AppUserId.Value);
+            if (user == null)
+            {
+                return BadRequest(new { Message = "Belirtilen kullanıcı bulunamadı." });
+            }
         }
 
         var vehicle = new Vehicle
         {
-            AppUserId = createVehicleDto.AppUserId,
+            AppUserId = createVehicleDto.AppUserId, // Boş gelebilir, sorun yok
             LicensePlate = createVehicleDto.LicensePlate,
-            DriverName = user.FullName,
+            DriverName = user != null ? user.FullName : "Atanmadı", // Kullanıcı yoksa Atanmadı yaz
             PhoneNumber = createVehicleDto.PhoneNumber,
             IsActive = true
         };
@@ -93,11 +99,11 @@ public class AdminVehiclesController : ControllerBase
         {
             Id = vehicle.Id,
             LicensePlate = vehicle.LicensePlate,
-            DriverName = user.FullName,
+            DriverName = user != null ? user.FullName : "Atanmadı",
             PhoneNumber = vehicle.PhoneNumber,
             IsActive = vehicle.IsActive,
             AppUserId = vehicle.AppUserId,
-            UserFullName = user.FullName
+            UserFullName = user != null ? user.FullName : "Atanmadı"
         };
 
         // --- SİNYAL GÖNDER ---

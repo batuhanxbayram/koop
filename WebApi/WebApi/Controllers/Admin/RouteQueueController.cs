@@ -1,36 +1,35 @@
 ﻿
-using Koop.Data.Context;
-using Koop.Entity.DTOs.Vehicle;
-using Koop.Entity.Entities;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR; // <-- YENİ EKLENDİ
-using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using WebApi.Hubs;
+    using Koop.Data.Context;
+    using Koop.Entity.DTOs.Vehicle;
+    using Koop.Entity.Entities;
+    using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Mvc;
+    using Microsoft.AspNetCore.SignalR; // <-- YENİ EKLENDİ
+    using Microsoft.EntityFrameworkCore;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading.Tasks;
+    using WebApi.Hubs;
 
-namespace WebApi.Controllers.Admin
-{
-    [Route("api/routes/{routeId}/queue")]
-    [ApiController]
-    public class RouteQueueController : ControllerBase
+    namespace WebApi.Controllers.Admin
     {
-        private readonly AppDbContext _context;
-        private readonly IHubContext<QueueHub> _hubContext; // <-- YENİ EKLENDİ
-
-        public RouteQueueController(AppDbContext context, IHubContext<QueueHub> hubContext) // <-- YENİ EKLENDİ
+        [Route("api/routes/{routeId}/queue")]
+        [ApiController]
+        public class RouteQueueController : ControllerBase
         {
-            _context = context;
-            _hubContext = hubContext; // <-- YENİ EKLENDİ
-        }
+            private readonly AppDbContext _context;
+            private readonly IHubContext<QueueHub> _hubContext; 
+
+            public RouteQueueController(AppDbContext context, IHubContext<QueueHub> hubContext) 
+            {
+                _context = context;
+                _hubContext = hubContext; 
+            }
 
         [HttpGet("/api/queues/all")]
         public async Task<IActionResult> GetAllQueues()
         {
-            // ... Buradaki kod aynı kalıyor, okuma işleminde sinyal gerekmez ...
             var allRoutes = await _context.Routes.Where(r => r.IsActive).OrderBy(r => r.RouteName).ToListAsync();
             var result = new List<RouteWithQueueDto>();
 
@@ -44,11 +43,12 @@ namespace WebApi.Controllers.Admin
                     {
                         Id = q.Vehicle.Id,
                         LicensePlate = q.Vehicle.LicensePlate,
-                        UserFullName = q.Vehicle.AppUser.FullName,
+                        // 🟢 DİKKAT: AppUser null ise patlamaması için kontrol eklendi
+                        UserFullName = q.Vehicle.AppUser != null ? q.Vehicle.AppUser.FullName : "Atanmadı",
                         PhoneNumber = q.Vehicle.PhoneNumber,
                         DriverName = q.Vehicle.DriverName,
                         IsActive = q.Vehicle.IsActive,
-                        AppUserId = q.Vehicle.AppUserId
+                        AppUserId = q.Vehicle.AppUserId 
                     })
                     .ToListAsync();
 
@@ -73,7 +73,7 @@ namespace WebApi.Controllers.Admin
                 {
                     Id = q.Vehicle.Id,
                     LicensePlate = q.Vehicle.LicensePlate,
-                    UserFullName = q.Vehicle.AppUser.FullName,
+                    UserFullName = q.Vehicle.AppUser != null ? q.Vehicle.AppUser.FullName : "Atanmadı",
                     PhoneNumber = q.Vehicle.PhoneNumber,
                     DriverName = q.Vehicle.DriverName,
                     IsActive = q.Vehicle.IsActive,
@@ -85,103 +85,103 @@ namespace WebApi.Controllers.Admin
         }
 
         [HttpPost]
-        public async Task<IActionResult> AddVehicleToQueue(long routeId, [FromBody] AddVehicleToQueueDto dto)
-        {
-            var routeExists = await _context.Routes.AnyAsync(r => r.Id == routeId);
-            if (!routeExists) return NotFound("Güzergah bulunamadı.");
-
-            var vehicleExists = await _context.Vehicles.AnyAsync(v => v.Id == dto.VehicleId);
-            if (!vehicleExists) return NotFound("Araç bulunamadı.");
-
-            var alreadyInQueue = await _context.RouteVehicleQueues.AnyAsync(q => q.RouteId == routeId && q.VehicleId == dto.VehicleId);
-            if (alreadyInQueue) return BadRequest("Bu araç zaten bu sırada mevcut.");
-
-            var queueEntry = new RouteVehicleQueue
+            public async Task<IActionResult> AddVehicleToQueue(long routeId, [FromBody] AddVehicleToQueueDto dto)
             {
-                RouteId = routeId,
-                VehicleId = dto.VehicleId,
-                QueueTimestamp = DateTime.UtcNow
-            };
+                var routeExists = await _context.Routes.AnyAsync(r => r.Id == routeId);
+                if (!routeExists) return NotFound("Güzergah bulunamadı.");
 
-            _context.RouteVehicleQueues.Add(queueEntry);
-            await _context.SaveChangesAsync();
+                var vehicleExists = await _context.Vehicles.AnyAsync(v => v.Id == dto.VehicleId);
+                if (!vehicleExists) return NotFound("Araç bulunamadı.");
 
-            // --- SİNYAL GÖNDER ---
-            await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
+                var alreadyInQueue = await _context.RouteVehicleQueues.AnyAsync(q => q.RouteId == routeId && q.VehicleId == dto.VehicleId);
+                if (alreadyInQueue) return BadRequest("Bu araç zaten bu sırada mevcut.");
 
-            return Ok(queueEntry);
-        }
-
-        [HttpDelete("{vehicleId}")]
-        public async Task<IActionResult> RemoveVehicleFromQueue(long routeId, long vehicleId)
-        {
-            var queueEntry = await _context.RouteVehicleQueues.FirstOrDefaultAsync(q => q.RouteId == routeId && q.VehicleId == vehicleId);
-
-            if (queueEntry == null)
-            {
-                return NotFound("Araç bu sırada bulunamadı.");
-            }
-
-            _context.RouteVehicleQueues.Remove(queueEntry);
-            await _context.SaveChangesAsync();
-
-            // --- SİNYAL GÖNDER ---
-            await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
-
-            return NoContent();
-        }
-
-        [HttpPost("reorder")]
-        public async Task<IActionResult> ReorderQueue(long routeId, [FromBody] ReorderQueueDto dto)
-        {
-            var queueEntries = await _context.RouteVehicleQueues
-                .Where(q => q.RouteId == routeId)
-                .ToListAsync();
-
-            if (dto.OrderedVehicleIds.Count != queueEntries.Count)
-            {
-                return BadRequest("Sıralama listesi ile veritabanı kaydı eşleşmiyor.");
-            }
-
-            var baseTimestamp = DateTime.UtcNow;
-
-            for (int i = 0; i < dto.OrderedVehicleIds.Count; i++)
-            {
-                var vehicleId = dto.OrderedVehicleIds[i];
-                var entryToUpdate = queueEntries.FirstOrDefault(q => q.VehicleId == vehicleId);
-
-                if (entryToUpdate != null)
+                var queueEntry = new RouteVehicleQueue
                 {
-                    entryToUpdate.QueueTimestamp = baseTimestamp.AddSeconds(i);
-                }
+                    RouteId = routeId,
+                    VehicleId = dto.VehicleId,
+                    QueueTimestamp = DateTime.UtcNow
+                };
+
+                _context.RouteVehicleQueues.Add(queueEntry);
+                await _context.SaveChangesAsync();
+
+                // --- SİNYAL GÖNDER ---
+                await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
+
+                return Ok(queueEntry);
             }
 
-            await _context.SaveChangesAsync();
-
-            // --- SİNYAL GÖNDER ---
-            await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
-
-            return Ok("Sıralama başarıyla güncellendi.");
-        }
-
-        [HttpPost("move-to-end")]
-        public async Task<IActionResult> MoveVehicleToEnd(long routeId, [FromBody] MoveVehicleDto dto)
-        {
-            var queueEntry = await _context.RouteVehicleQueues
-                .FirstOrDefaultAsync(q => q.RouteId == routeId && q.VehicleId == dto.VehicleId);
-
-            if (queueEntry == null)
+            [HttpDelete("{vehicleId}")]
+            public async Task<IActionResult> RemoveVehicleFromQueue(long routeId, long vehicleId)
             {
-                return NotFound("Araç bu sırada bulunamadı.");
+                var queueEntry = await _context.RouteVehicleQueues.FirstOrDefaultAsync(q => q.RouteId == routeId && q.VehicleId == vehicleId);
+
+                if (queueEntry == null)
+                {
+                    return NotFound("Araç bu sırada bulunamadı.");
+                }
+
+                _context.RouteVehicleQueues.Remove(queueEntry);
+                await _context.SaveChangesAsync();
+
+                // --- SİNYAL GÖNDER ---
+                await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
+
+                return NoContent();
             }
 
-            queueEntry.QueueTimestamp = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
+            [HttpPost("reorder")]
+            public async Task<IActionResult> ReorderQueue(long routeId, [FromBody] ReorderQueueDto dto)
+            {
+                var queueEntries = await _context.RouteVehicleQueues
+                    .Where(q => q.RouteId == routeId)
+                    .ToListAsync();
 
-            // --- SİNYAL GÖNDER ---
-            await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
+                if (dto.OrderedVehicleIds.Count != queueEntries.Count)
+                {
+                    return BadRequest("Sıralama listesi ile veritabanı kaydı eşleşmiyor.");
+                }
 
-            return Ok();
+                var baseTimestamp = DateTime.UtcNow;
+
+                for (int i = 0; i < dto.OrderedVehicleIds.Count; i++)
+                {
+                    var vehicleId = dto.OrderedVehicleIds[i];
+                    var entryToUpdate = queueEntries.FirstOrDefault(q => q.VehicleId == vehicleId);
+
+                    if (entryToUpdate != null)
+                    {
+                        entryToUpdate.QueueTimestamp = baseTimestamp.AddSeconds(i);
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+
+                // --- SİNYAL GÖNDER ---
+                await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
+
+                return Ok("Sıralama başarıyla güncellendi.");
+            }
+
+            [HttpPost("move-to-end")]
+            public async Task<IActionResult> MoveVehicleToEnd(long routeId, [FromBody] MoveVehicleDto dto)
+            {
+                var queueEntry = await _context.RouteVehicleQueues
+                    .FirstOrDefaultAsync(q => q.RouteId == routeId && q.VehicleId == dto.VehicleId);
+
+                if (queueEntry == null)
+                {
+                    return NotFound("Araç bu sırada bulunamadı.");
+                }
+
+                queueEntry.QueueTimestamp = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                // --- SİNYAL GÖNDER ---
+                await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
+
+                return Ok();
+            }
         }
     }
-}

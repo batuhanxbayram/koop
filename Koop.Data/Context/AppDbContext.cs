@@ -34,8 +34,10 @@ namespace Koop.Data.Context
             .IsUnique();
 
             builder.Entity<Vehicle>()
-                .HasIndex(v => v.LicensePlate)
-                .IsUnique();
+                .HasOne(v => v.AppUser)
+                .WithMany(u => u.Vehicles)
+                .HasForeignKey(v => v.AppUserId)
+                .IsRequired(false);
 
             builder.Entity<RouteVehicleQueue>()
                 .HasIndex(q => new { q.RouteId, q.VehicleId })

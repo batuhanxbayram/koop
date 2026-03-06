@@ -10,7 +10,7 @@ namespace Koop.Entity.DTOs.Vehicle
     public class CreateVehicleDto
     {
         [Required]
-        public Guid AppUserId { get; set; } // Aracı atayacağınız şoförün ID'si
+        public Guid? AppUserId { get; set; } // Aracı atayacağınız şoförün ID'si
 
         [Required]
         [StringLength(20)]

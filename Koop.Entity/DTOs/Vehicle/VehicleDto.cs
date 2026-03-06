@@ -15,7 +15,7 @@ namespace Koop.Entity.DTOs.Vehicle
         public string? DriverName { get; set; } 
         public string? PhoneNumber { get; set; }
         public bool IsActive { get; set; }
-        public Guid AppUserId { get; set; }
+        public Guid? AppUserId { get; set; }
         public string UserFullName { get; set; }
     }
 }
