@@ -31,13 +31,22 @@ namespace WebApi.Controllers.User
         public async Task<IActionResult> GetUserAndVehicle()
         {
             var users = await context.Users
-                .Include(u => u.Vehicle) 
+                .AsNoTracking()
+                .Select(u => new
+                {
+                    u.Id,
+                    u.FullName,
+                    FirstVehicle = u.Vehicles
+                        .OrderBy(v => v.Id)
+                        .Select(v => new { v.LicensePlate, v.PhoneNumber })
+                        .FirstOrDefault()
+                })
                 .Select(u => new UserVehicleDto
                 {
                     Id = u.Id,
                     FullName = u.FullName,
-                    LicensePlate = u.Vehicle != null ? u.Vehicle.LicensePlate : "-",
-                    PhoneNumber = u.Vehicle != null ? u.Vehicle.PhoneNumber : "-"
+                    LicensePlate = u.FirstVehicle != null ? u.FirstVehicle.LicensePlate : "-",
+                    PhoneNumber = u.FirstVehicle != null ? u.FirstVehicle.PhoneNumber : "-"
                 })
                 .ToListAsync();
 
@@ -48,9 +57,8 @@ namespace WebApi.Controllers.User
         public async Task<IActionResult> GetUserAndVehicleWithout()
         {
             var users = await context.Users
-                .Include(u => u.Vehicle)
-               
-                .Where(u => u.Vehicle == null)
+                .AsNoTracking()
+                .Where(u => !u.Vehicles.Any())
                 .Select(u => new UserVehicleDto
                 {
                     Id = u.Id,
