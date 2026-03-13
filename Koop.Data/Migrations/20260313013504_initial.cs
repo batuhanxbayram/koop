@@ -3,12 +3,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
-
 namespace Koop.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class vehicle : Migration
+    public partial class initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -184,7 +182,6 @@ namespace Koop.Data.Migrations
                     AppUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     LicensePlate = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     DriverName = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: true),
-                    PhoneNumber = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
                     IsActive = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
@@ -222,44 +219,6 @@ namespace Koop.Data.Migrations
                         principalTable: "Vehicles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.InsertData(
-                table: "AspNetUsers",
-                columns: new[] { "Id", "AccessFailedCount", "ConcurrencyStamp", "Email", "EmailConfirmed", "FullName", "LockoutEnabled", "LockoutEnd", "NormalizedEmail", "NormalizedUserName", "PasswordHash", "PhoneNumber", "PhoneNumberConfirmed", "RefreshToken", "RefreshTokenExpireTime", "SecurityStamp", "TwoFactorEnabled", "UserName" },
-                values: new object[,]
-                {
-                    { new Guid("3e3b7877-9587-41f5-8f26-368729074ff8"), 0, "e1638d0c-6690-4a16-8e9a-a3ca24d02433", "ayse.kaya@example.com", true, "Ayşe Kaya", false, null, "AYSE.KAYA@EXAMPLE.COM", "AYSE.KAYA", "AQAAAAIAAYagAAAAEOKOz6hf2rjmgwdJk4oQo0gG+qCvIqU15wf31UZv1/Rb5pFZoFe1xnfBafZGVirVaQ==", null, false, null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "9b32bfbe-69da-4fa3-9efe-d49882223bcc", false, "ayse.kaya" },
-                    { new Guid("c15ae46b-92d2-4fb5-8ca1-2310b8714d20"), 0, "25034a81-ce15-47b6-bf3b-c9c2783bc40e", "ahmet.yilmaz@example.com", true, "Ahmet Yılmaz", false, null, "AHMET.YILMAZ@EXAMPLE.COM", "AHMET.YILMAZ", "AQAAAAIAAYagAAAAEBYKjeAlprkqEis83y8Jooz+3+OhsV93F5KNiPegnFCmUgOdfH1CmUAUYMSms7NRTA==", null, false, null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "32827f07-29e0-4f78-80d5-02d56aaa30b8", false, "ahmet.yilmaz" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "Routes",
-                columns: new[] { "Id", "IsActive", "RouteName" },
-                values: new object[,]
-                {
-                    { 1L, true, "Kuzey Hattı" },
-                    { 2L, true, "Güney Hattı" },
-                    { 3L, false, "Doğu-Batı Ring" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "Vehicles",
-                columns: new[] { "Id", "AppUserId", "DriverName", "IsActive", "LicensePlate", "PhoneNumber" },
-                values: new object[,]
-                {
-                    { 1L, new Guid("c15ae46b-92d2-4fb5-8ca1-2310b8714d20"), "Ahmet Yılmaz", true, "34 ABC 123", "5551112233" },
-                    { 2L, new Guid("3e3b7877-9587-41f5-8f26-368729074ff8"), "Mehmet Öztürk", true, "35 DEF 456", "5554445566" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "RouteVehicleQueues",
-                columns: new[] { "Id", "QueueTimestamp", "RouteId", "VehicleId" },
-                values: new object[,]
-                {
-                    { 1L, new DateTime(2026, 3, 6, 11, 48, 10, 506, DateTimeKind.Utc).AddTicks(1539), 1L, 1L },
-                    { 2L, new DateTime(2026, 3, 6, 12, 48, 10, 506, DateTimeKind.Utc).AddTicks(1547), 1L, 2L },
-                    { 3L, new DateTime(2026, 3, 6, 13, 48, 10, 506, DateTimeKind.Utc).AddTicks(1548), 2L, 1L }
                 });
 
             migrationBuilder.CreateIndex(

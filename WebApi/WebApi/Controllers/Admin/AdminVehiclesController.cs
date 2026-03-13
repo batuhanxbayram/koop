@@ -48,18 +48,18 @@ public class AdminVehiclesController : ControllerBase
     public async Task<IActionResult> GetAllVehicles()
     {
         var vehicles = await _context.Vehicles
-            .Include(v => v.AppUser)
-            .Select(v => new VehicleDto
-            {
-                Id = v.Id,
-                LicensePlate = v.LicensePlate,
-               
-                DriverName = v.AppUser != null ? v.AppUser.FullName : "Atanmadı",
-                PhoneNumber = v.PhoneNumber,
-                IsActive = v.IsActive,
-                AppUserId = v.AppUserId, 
-            })
-            .ToListAsync();
+    .Include(v => v.AppUser)
+    .Select(v => new VehicleDto
+    {
+        Id = v.Id,
+        LicensePlate = v.LicensePlate,
+        DriverName = v.AppUser != null ? v.AppUser.FullName : (v.DriverName ?? "Atanmadı"),
+        PhoneNumber = v.AppUser != null ? v.AppUser.PhoneNumber : null,  // user'dan geliyor
+        IsActive = v.IsActive,
+        AppUserId = v.AppUserId,
+        UserFullName = v.AppUser != null ? v.AppUser.FullName : "Atanmadı"
+    })
+    .ToListAsync();
 
         return Ok(vehicles);
     }
@@ -85,10 +85,9 @@ public class AdminVehiclesController : ControllerBase
 
         var vehicle = new Vehicle
         {
-            AppUserId = createVehicleDto.AppUserId, // Boş gelebilir, sorun yok
+            AppUserId = createVehicleDto.AppUserId, 
             LicensePlate = createVehicleDto.LicensePlate,
-            DriverName = user != null ? user.FullName : "Atanmadı", // Kullanıcı yoksa Atanmadı yaz
-            PhoneNumber = createVehicleDto.PhoneNumber,
+            DriverName = user != null ? user.FullName : "Atanmadı", 
             IsActive = true
         };
 
@@ -107,13 +106,12 @@ public class AdminVehiclesController : ControllerBase
             Id = vehicle.Id,
             LicensePlate = vehicle.LicensePlate,
             DriverName = user != null ? user.FullName : "Atanmadı",
-            PhoneNumber = vehicle.PhoneNumber,
             IsActive = vehicle.IsActive,
             AppUserId = vehicle.AppUserId,
             UserFullName = user != null ? user.FullName : "Atanmadı"
         };
 
-        // --- SİNYAL GÖNDER ---
+       
         await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
 
         return CreatedAtAction(nameof(GetVehicleById), new { id = vehicle.Id }, vehicleDto);
@@ -196,7 +194,6 @@ public class AdminVehiclesController : ControllerBase
 
         vehicle.AppUserId = updateVehicleDto.AppUserId;
         vehicle.LicensePlate = updateVehicleDto.LicensePlate;
-        vehicle.PhoneNumber = updateVehicleDto.PhoneNumber;
         vehicle.DriverName = user != null ? user.FullName : "Atanmadı";
         vehicle.IsActive = updateVehicleDto.IsActive;
         try
@@ -251,7 +248,7 @@ public class AdminVehiclesController : ControllerBase
             Id = vehicle.Id,
             LicensePlate = vehicle.LicensePlate,
             DriverName = vehicle.DriverName,
-            PhoneNumber = vehicle.PhoneNumber,
+            
             IsActive = vehicle.IsActive,
             AppUserId = vehicle.AppUserId,
             UserFullName = user != null ? user.FullName : "Atanmadı"
@@ -299,7 +296,6 @@ public class AdminVehiclesController : ControllerBase
                 Id = x.Vehicle.Id,
                 LicensePlate = x.Vehicle.LicensePlate,
                 DriverName = x.Vehicle.AppUser != null ? x.Vehicle.AppUser.FullName : x.Vehicle.DriverName,
-                PhoneNumber = x.Vehicle.PhoneNumber,
                 IsActive = x.Vehicle.IsActive,
                 AppUserId = x.Vehicle.AppUserId,
                 UserFullName = x.Vehicle.AppUser != null ? x.Vehicle.AppUser.FullName : ""

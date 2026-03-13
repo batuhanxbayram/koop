@@ -83,30 +83,7 @@ using (var scope = app.Services.CreateScope())
 
 
         await dbContext.Database.MigrateAsync();
-        // 1. HAYALET KOLONLARI TEMİZLE (AppUserId1 Hatası İçin)
-        // Bu işlemi async metodun içinde senkron çalıştırıyoruz çünkü Program.cs akışındayız.
-        dbContext.Database.ExecuteSqlRaw(@"
-            IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Vehicles_AspNetUsers_AppUserId1')
-            BEGIN
-                ALTER TABLE [Vehicles] DROP CONSTRAINT [FK_Vehicles_AspNetUsers_AppUserId1];
-            END
-
-            IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Vehicles_AppUserId1' AND object_id = OBJECT_ID('Vehicles'))
-            BEGIN
-                DROP INDEX [IX_Vehicles_AppUserId1] ON [Vehicles];
-            END
-
-            IF COL_LENGTH('Vehicles', 'AppUserId1') IS NOT NULL
-            BEGIN
-                ALTER TABLE [Vehicles] DROP COLUMN [AppUserId1];
-            END
-
-            IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Vehicles_AppUserId' AND object_id = OBJECT_ID('Vehicles') AND is_unique = 1)
-            BEGIN
-                DROP INDEX [IX_Vehicles_AppUserId] ON [Vehicles];
-                CREATE INDEX [IX_Vehicles_AppUserId] ON [Vehicles]([AppUserId]) WHERE [AppUserId] IS NOT NULL;
-            END
-        ");
+       
 
 
         var userManager = services.GetRequiredService<UserManager<AppUser>>();

@@ -31,24 +31,19 @@ namespace WebApi.Controllers.User
         public async Task<IActionResult> GetUserAndVehicle()
         {
             var users = await context.Users
-                .AsNoTracking()
-                .Select(u => new
-                {
-                    u.Id,
-                    u.FullName,
-                    FirstVehicle = u.Vehicles
-                        .OrderBy(v => v.Id)
-                        .Select(v => new { v.LicensePlate, v.PhoneNumber })
-                        .FirstOrDefault()
-                })
-                .Select(u => new UserVehicleDto
-                {
-                    Id = u.Id,
-                    FullName = u.FullName,
-                    LicensePlate = u.FirstVehicle != null ? u.FirstVehicle.LicensePlate : "-",
-                    PhoneNumber = u.FirstVehicle != null ? u.FirstVehicle.PhoneNumber : "-"
-                })
-                .ToListAsync();
+        .AsNoTracking()
+        .Include(u => u.Vehicles)
+        .Select(u => new UserVehicleDto
+        {
+            Id = u.Id,
+            FullName = u.FullName,
+            PhoneNumber = u.PhoneNumber ?? "-",  
+            LicensePlate = u.Vehicles
+                .OrderBy(v => v.Id)
+                .Select(v => v.LicensePlate)
+                .FirstOrDefault() ?? "-"
+        })
+        .ToListAsync();
 
             return Ok(users);
         }
@@ -211,7 +206,8 @@ namespace WebApi.Controllers.User
             var user = new AppUser
             {
                 UserName = createUserDto.UserName,
-                FullName = createUserDto.FullName
+                FullName = createUserDto.FullName,
+                PhoneNumber = createUserDto.PhoneNumber
             };
 
             var result = await _userManager.CreateAsync(user, createUserDto.Password);
@@ -221,17 +217,15 @@ namespace WebApi.Controllers.User
                 return BadRequest(result.Errors);
             }
 
-            // --- HİBRİT ROL ATAMA MANTIĞI ---
-
-            // EĞER frontend veya seed script'i bir rol listesi gönderdiyse:
+          
             if (createUserDto.Roles != null && createUserDto.Roles.Any())
             {
-                // Gelen rollerin sistemde var olup olmadığını kontrol et (güvenlik için)
+               
                 foreach (var roleName in createUserDto.Roles)
                 {
                     if (!await _roleManager.RoleExistsAsync(roleName))
                     {
-                        await _userManager.DeleteAsync(user); // Hatalı durumda kullanıcıyı geri sil
+                        await _userManager.DeleteAsync(user); 
                         return BadRequest($"'{roleName}' adında bir rol bulunamadı.");
                     }
                 }
@@ -253,7 +247,7 @@ namespace WebApi.Controllers.User
                     return StatusCode(StatusCodes.Status500InternalServerError, "Sistem hatası: Varsayılan 'User' rolü bulunamadı.");
                 }
             }
-            // --- MANTIK BİTTİ ---
+           
 
             var createdUserDto = new UserVehicleDto
             {

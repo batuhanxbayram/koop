@@ -12,8 +12,9 @@ namespace Koop.Entity.DTOs.Vehicle
     {
         public long Id { get; set; }
         public string LicensePlate { get; set; }
-        public string? DriverName { get; set; } 
+        public string? DriverName { get; set; }
         public string? PhoneNumber { get; set; }
+       
         public bool IsActive { get; set; }
         public Guid? AppUserId { get; set; }
         public string UserFullName { get; set; }

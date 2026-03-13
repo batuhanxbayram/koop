@@ -45,7 +45,6 @@
                         LicensePlate = q.Vehicle.LicensePlate,
                         // 🟢 DİKKAT: AppUser null ise patlamaması için kontrol eklendi
                         UserFullName = q.Vehicle.AppUser != null ? q.Vehicle.AppUser.FullName : "Atanmadı",
-                        PhoneNumber = q.Vehicle.PhoneNumber,
                         DriverName = q.Vehicle.DriverName,
                         IsActive = q.Vehicle.IsActive,
                         AppUserId = q.Vehicle.AppUserId 
@@ -74,7 +73,6 @@
                     Id = q.Vehicle.Id,
                     LicensePlate = q.Vehicle.LicensePlate,
                     UserFullName = q.Vehicle.AppUser != null ? q.Vehicle.AppUser.FullName : "Atanmadı",
-                    PhoneNumber = q.Vehicle.PhoneNumber,
                     DriverName = q.Vehicle.DriverName,
                     IsActive = q.Vehicle.IsActive,
                     AppUserId = q.Vehicle.AppUserId

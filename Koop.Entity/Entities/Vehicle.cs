@@ -24,11 +24,8 @@ namespace Koop.Entity.Entities
 
         [StringLength(150)]
         public string? DriverName { get; set; } 
-
-        [StringLength(20)]
-        public string? PhoneNumber { get; set; }
-
         
+
         public bool IsActive { get; set; } = true;
 
         public ICollection<RouteVehicleQueue> RouteVehicleQueues { get; set; } = new List<RouteVehicleQueue>();

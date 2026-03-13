@@ -24,8 +24,10 @@ namespace Koop.Entity.DTOs.User
         [Compare("Password", ErrorMessage = "Şifreler uyuşmuyor.")]
         public string ConfirmPassword { get; set; }
 
+        [Phone]
+        [StringLength(20)]
+        public string? PhoneNumber { get; set; }  
 
-        // Opsiyonel: Kullanıcı oluşturulurken direkt rol ataması yapmak isterseniz.
         public IList<string>? Roles { get; set; }
     }
 }

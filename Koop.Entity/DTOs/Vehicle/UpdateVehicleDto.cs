@@ -18,8 +18,7 @@ namespace Koop.Entity.DTOs.Vehicle
         [StringLength(150)]
         public string? DriverName { get; set; }
 
-        [StringLength(20)]
-        public string? PhoneNumber { get; set; }
+       
 
         public bool IsActive { get; set; }
     }

@@ -124,44 +124,6 @@ namespace Koop.Data.Migrations
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("c15ae46b-92d2-4fb5-8ca1-2310b8714d20"),
-                            AccessFailedCount = 0,
-                            ConcurrencyStamp = "25034a81-ce15-47b6-bf3b-c9c2783bc40e",
-                            Email = "ahmet.yilmaz@example.com",
-                            EmailConfirmed = true,
-                            FullName = "Ahmet Yılmaz",
-                            LockoutEnabled = false,
-                            NormalizedEmail = "AHMET.YILMAZ@EXAMPLE.COM",
-                            NormalizedUserName = "AHMET.YILMAZ",
-                            PasswordHash = "AQAAAAIAAYagAAAAEBYKjeAlprkqEis83y8Jooz+3+OhsV93F5KNiPegnFCmUgOdfH1CmUAUYMSms7NRTA==",
-                            PhoneNumberConfirmed = false,
-                            RefreshTokenExpireTime = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            SecurityStamp = "32827f07-29e0-4f78-80d5-02d56aaa30b8",
-                            TwoFactorEnabled = false,
-                            UserName = "ahmet.yilmaz"
-                        },
-                        new
-                        {
-                            Id = new Guid("3e3b7877-9587-41f5-8f26-368729074ff8"),
-                            AccessFailedCount = 0,
-                            ConcurrencyStamp = "e1638d0c-6690-4a16-8e9a-a3ca24d02433",
-                            Email = "ayse.kaya@example.com",
-                            EmailConfirmed = true,
-                            FullName = "Ayşe Kaya",
-                            LockoutEnabled = false,
-                            NormalizedEmail = "AYSE.KAYA@EXAMPLE.COM",
-                            NormalizedUserName = "AYSE.KAYA",
-                            PasswordHash = "AQAAAAIAAYagAAAAEOKOz6hf2rjmgwdJk4oQo0gG+qCvIqU15wf31UZv1/Rb5pFZoFe1xnfBafZGVirVaQ==",
-                            PhoneNumberConfirmed = false,
-                            RefreshTokenExpireTime = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            SecurityStamp = "9b32bfbe-69da-4fa3-9efe-d49882223bcc",
-                            TwoFactorEnabled = false,
-                            UserName = "ayse.kaya"
-                        });
                 });
 
             modelBuilder.Entity("Koop.Entity.Entities.Route", b =>
@@ -186,26 +148,6 @@ namespace Koop.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Routes");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1L,
-                            IsActive = true,
-                            RouteName = "Kuzey Hattı"
-                        },
-                        new
-                        {
-                            Id = 2L,
-                            IsActive = true,
-                            RouteName = "Güney Hattı"
-                        },
-                        new
-                        {
-                            Id = 3L,
-                            IsActive = false,
-                            RouteName = "Doğu-Batı Ring"
-                        });
                 });
 
             modelBuilder.Entity("Koop.Entity.Entities.RouteVehicleQueue", b =>
@@ -233,29 +175,6 @@ namespace Koop.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("RouteVehicleQueues");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1L,
-                            QueueTimestamp = new DateTime(2026, 3, 6, 11, 48, 10, 506, DateTimeKind.Utc).AddTicks(1539),
-                            RouteId = 1L,
-                            VehicleId = 1L
-                        },
-                        new
-                        {
-                            Id = 2L,
-                            QueueTimestamp = new DateTime(2026, 3, 6, 12, 48, 10, 506, DateTimeKind.Utc).AddTicks(1547),
-                            RouteId = 1L,
-                            VehicleId = 2L
-                        },
-                        new
-                        {
-                            Id = 3L,
-                            QueueTimestamp = new DateTime(2026, 3, 6, 13, 48, 10, 506, DateTimeKind.Utc).AddTicks(1548),
-                            RouteId = 2L,
-                            VehicleId = 1L
-                        });
                 });
 
             modelBuilder.Entity("Koop.Entity.Entities.Vehicle", b =>
@@ -281,35 +200,11 @@ namespace Koop.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
-                    b.Property<string>("PhoneNumber")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
                     b.HasKey("Id");
 
                     b.HasIndex("AppUserId");
 
                     b.ToTable("Vehicles");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1L,
-                            AppUserId = new Guid("c15ae46b-92d2-4fb5-8ca1-2310b8714d20"),
-                            DriverName = "Ahmet Yılmaz",
-                            IsActive = true,
-                            LicensePlate = "34 ABC 123",
-                            PhoneNumber = "5551112233"
-                        },
-                        new
-                        {
-                            Id = 2L,
-                            AppUserId = new Guid("3e3b7877-9587-41f5-8f26-368729074ff8"),
-                            DriverName = "Mehmet Öztürk",
-                            IsActive = true,
-                            LicensePlate = "35 DEF 456",
-                            PhoneNumber = "5554445566"
-                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
