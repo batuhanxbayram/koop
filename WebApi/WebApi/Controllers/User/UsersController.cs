@@ -93,43 +93,7 @@ namespace WebApi.Controllers.User
             return Ok(users);
         }
 
-        [HttpPost("create-pool-user")]
-        public async Task<IActionResult> CreatePoolUser([FromServices] UserManager<AppUser> userManager)
-        {
-            // 1. Kullanıcının var olup olmadığını kontrol et (Çift kaydı önlemek için)
-            var existingUser = await userManager.FindByNameAsync("sistem_havuz");
-            if (existingUser != null)
-            {
-                return Ok(new { message = "Bu kullanıcı zaten var!", userId = existingUser.Id });
-            }
-
-            // 2. Yeni kullanıcı nesnesini oluştur
-            var poolUser = new AppUser
-            {
-                UserName = "sistem_havuz",
-                Email = "havuz@75ymkt.com", 
-                EmailConfirmed = true,
-                FullName = "Sistem Aktarım",
-               
-            };
-
-            // 3. Kullanıcıyı güçlü bir şifre ile Identity üzerinden kaydet
-            // Şifre kurallarına takılmamak için büyük/küçük harf, rakam ve özel karakter içeren bir şifre veriyoruz
-            var result = await userManager.CreateAsync(poolUser, "HavuzUser.123456!");
-
-            if (result.Succeeded)
-            {
-                // Başarılı olursa bize oluşturulan GUID'i (Id) dönecek
-                return Ok(new
-                {
-                    message = "Havuz kullanıcı başarıyla oluşturuldu!",
-                    userId = poolUser.Id
-                });
-            }
-
-            // Hata olursa Identity hatalarını listele
-            return BadRequest(result.Errors);
-        }
+       
 
 
 
@@ -156,7 +120,7 @@ namespace WebApi.Controllers.User
 
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")] // Sadece adminlerin kullanıcı silebilmesini sağlar
+        [Authorize(Roles = "Admin")] 
         public async Task<IActionResult> DeleteUser(Guid id)
         {
             // Kullanıcıyı ID'sine göre bul
@@ -214,6 +178,30 @@ namespace WebApi.Controllers.User
             }
 
             return BadRequest(result.Errors);
+        }
+
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<IActionResult> GetMe()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) return NotFound();
+            var vehicle = await context.Vehicles
+                .Where(v => v.AppUserId == user.Id)
+                .OrderBy(v => v.Id)
+                .FirstOrDefaultAsync();
+
+            return Ok(new
+            {
+                id = user.Id,
+                fullName = user.FullName,
+                userName = user.UserName,
+                phoneNumber = user.PhoneNumber,
+                licensePlate = vehicle != null ? vehicle.LicensePlate : "-"
+            });
         }
 
 
