@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace WebApi.Controllers.User
 {
@@ -46,6 +47,34 @@ namespace WebApi.Controllers.User
         .ToListAsync();
 
             return Ok(users);
+        }
+
+
+        
+        [HttpPost("change-my-password")]
+        [Authorize] 
+        public async Task<IActionResult> ChangeMyPassword([FromBody] ChangeMyPasswordDto dto)
+        {
+            // Token'dan kullanıcı ID'sini al — dışarıdan gelen ID'ye güvenme
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) return NotFound();
+
+            // Mevcut şifreyi doğrula
+            var isOldPasswordCorrect = await _userManager.CheckPasswordAsync(user, dto.CurrentPassword);
+            if (!isOldPasswordCorrect)
+                return BadRequest(new { message = "Mevcut şifre hatalı." });
+
+            // Yeni şifreyi set et
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var result = await _userManager.ResetPasswordAsync(user, token, dto.NewPassword);
+
+            if (!result.Succeeded)
+                return BadRequest(new { message = result.Errors.FirstOrDefault()?.Description });
+
+            return Ok(new { message = "Şifre başarıyla güncellendi." });
         }
 
         [HttpGet("without-vehicle")]
