@@ -129,40 +129,39 @@
                 return NoContent();
             }
 
-            [HttpPost("reorder")]
-            public async Task<IActionResult> ReorderQueue(long routeId, [FromBody] ReorderQueueDto dto)
+        [HttpPost("reorder")]
+        public async Task<IActionResult> ReorderQueue(long routeId, [FromBody] ReorderQueueDto dto)
+        {
+            var queueEntries = await _context.RouteVehicleQueues
+                .Where(q => q.RouteId == routeId)
+                .ToListAsync();
+
+            // Sadece gelen ID'leri işle, bilinmeyenleri atla
+            var baseTimestamp = DateTime.UtcNow;
+            var processed = 0;
+
+            for (int i = 0; i < dto.OrderedVehicleIds.Count; i++)
             {
-                var queueEntries = await _context.RouteVehicleQueues
-                    .Where(q => q.RouteId == routeId)
-                    .ToListAsync();
+                var vehicleId = dto.OrderedVehicleIds[i];
+                var entryToUpdate = queueEntries.FirstOrDefault(q => q.VehicleId == vehicleId);
 
-                if (dto.OrderedVehicleIds.Count != queueEntries.Count)
+                if (entryToUpdate != null)
                 {
-                    return BadRequest("Sıralama listesi ile veritabanı kaydı eşleşmiyor.");
+                    entryToUpdate.QueueTimestamp = baseTimestamp.AddSeconds(i);
+                    processed++;
                 }
-
-                var baseTimestamp = DateTime.UtcNow;
-
-                for (int i = 0; i < dto.OrderedVehicleIds.Count; i++)
-                {
-                    var vehicleId = dto.OrderedVehicleIds[i];
-                    var entryToUpdate = queueEntries.FirstOrDefault(q => q.VehicleId == vehicleId);
-
-                    if (entryToUpdate != null)
-                    {
-                        entryToUpdate.QueueTimestamp = baseTimestamp.AddSeconds(i);
-                    }
-                }
-
-                await _context.SaveChangesAsync();
-
-                // --- SİNYAL GÖNDER ---
-                await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
-
-                return Ok("Sıralama başarıyla güncellendi.");
             }
 
-            [HttpPost("move-to-end")]
+            if (processed == 0)
+                return BadRequest("Güncellenecek geçerli araç bulunamadı.");
+
+            await _context.SaveChangesAsync();
+            await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
+
+            return Ok($"{processed} araç sırası güncellendi.");
+        }
+
+        [HttpPost("move-to-end")]
             public async Task<IActionResult> MoveVehicleToEnd(long routeId, [FromBody] MoveVehicleDto dto)
             {
                 var queueEntry = await _context.RouteVehicleQueues
