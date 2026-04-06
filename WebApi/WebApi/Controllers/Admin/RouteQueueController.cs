@@ -94,14 +94,20 @@
                 var alreadyInQueue = await _context.RouteVehicleQueues.AnyAsync(q => q.RouteId == routeId && q.VehicleId == dto.VehicleId);
                 if (alreadyInQueue) return BadRequest("Bu araç zaten bu sırada mevcut.");
 
-                var queueEntry = new RouteVehicleQueue
-                {
-                    RouteId = routeId,
-                    VehicleId = dto.VehicleId,
-                    QueueTimestamp = DateTime.UtcNow
-                };
+            var maxTimestamp = await _context.RouteVehicleQueues
+                    .Where(q => q.RouteId == routeId)
+                    .Select(q => q.QueueTimestamp)
+                    .DefaultIfEmpty(DateTime.UtcNow)
+                    .MaxAsync();
 
-                _context.RouteVehicleQueues.Add(queueEntry);
+            var queueEntry = new RouteVehicleQueue
+            {
+                RouteId = routeId,
+                VehicleId = dto.VehicleId,
+                QueueTimestamp = maxTimestamp.AddSeconds(1)
+            };
+
+            _context.RouteVehicleQueues.Add(queueEntry);
                 await _context.SaveChangesAsync();
 
                 // --- SİNYAL GÖNDER ---

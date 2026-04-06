@@ -34,7 +34,10 @@ public class AdminVehiclesController : ControllerBase
         {
             return NotFound(new { Message = $"Bu güzergahta ({routeId}) sırada bekleyen araç bulunamadı." });
         }
-        firstInQueue.QueueTimestamp = DateTime.UtcNow;
+        var maxTimestamp = await _context.RouteVehicleQueues
+            .Where(q => q.RouteId == routeId)
+            .MaxAsync(q => q.QueueTimestamp);
+        firstInQueue.QueueTimestamp = maxTimestamp.AddSeconds(1);
 
         await _context.SaveChangesAsync();
 
@@ -136,7 +139,10 @@ public class AdminVehiclesController : ControllerBase
 
         if (queueEntry == null) return NotFound("Araç bu sırada bulunamadı.");
 
-        queueEntry.QueueTimestamp = DateTime.UtcNow;
+        var maxTimestamp = await _context.RouteVehicleQueues
+             .Where(q => q.RouteId == routeId)
+             .MaxAsync(q => q.QueueTimestamp);
+        queueEntry.QueueTimestamp = maxTimestamp.AddSeconds(1);
         await _context.SaveChangesAsync();
 
         // --- SİNYAL GÖNDER ---
