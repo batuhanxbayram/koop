@@ -204,6 +204,27 @@ namespace WebApi.Controllers.User
             });
         }
 
+        [HttpPost("reset-all-passwords")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ResetAllPasswords()
+        {
+            var users = await _userManager.Users.ToListAsync();
+            var errors = new List<string>();
+
+            foreach (var user in users)
+            {
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var result = await _userManager.ResetPasswordAsync(user, token, "123456");
+
+                if (!result.Succeeded)
+                    errors.Add($"{user.UserName}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+            }
+
+            return errors.Any()
+                ? BadRequest(new { Message = "Bazı şifreler değiştirilemedi.", Errors = errors })
+                : Ok(new { Message = $"{users.Count} kullanıcının şifresi '123456' olarak güncellendi." });
+        }
+
 
         [HttpPost]
         // [Authorize(Roles = "Admin")]
