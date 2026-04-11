@@ -16,6 +16,7 @@
     {
         [Route("api/routes/{routeId}/queue")]
         [ApiController]
+	[Authorize]
         public class RouteQueueController : ControllerBase
         {
             private readonly AppDbContext _context;
@@ -83,6 +84,7 @@
         }
 
         [HttpPost]
+	[Authorize(Roles = "Admin")]
             public async Task<IActionResult> AddVehicleToQueue(long routeId, [FromBody] AddVehicleToQueueDto dto)
             {
                 var routeExists = await _context.Routes.AnyAsync(r => r.Id == routeId);
@@ -117,6 +119,7 @@
             }
 
             [HttpDelete("{vehicleId}")]
+	    [Authorize(Roles = "Admin")]
             public async Task<IActionResult> RemoveVehicleFromQueue(long routeId, long vehicleId)
             {
                 var queueEntry = await _context.RouteVehicleQueues.FirstOrDefaultAsync(q => q.RouteId == routeId && q.VehicleId == vehicleId);
@@ -136,6 +139,7 @@
             }
 
         [HttpPost("reorder")]
+	[Authorize(Roles = "Admin")]
         public async Task<IActionResult> ReorderQueue(long routeId, [FromBody] ReorderQueueDto dto)
         {
             var queueEntries = await _context.RouteVehicleQueues
@@ -168,6 +172,7 @@
         }
 
         [HttpPost("move-to-end")]
+	[Authorize(Roles = "Admin")]
             public async Task<IActionResult> MoveVehicleToEnd(long routeId, [FromBody] MoveVehicleDto dto)
             {
                 var queueEntry = await _context.RouteVehicleQueues
