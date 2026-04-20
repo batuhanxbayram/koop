@@ -82,51 +82,7 @@
             return Ok(queuedVehicles);
         }
 
-        [HttpPost]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> AddVehicleToQueue(long routeId, [FromBody] AddVehicleToQueueDto dto)
-        {
-            var routeExists = await _context.Routes.AnyAsync(r => r.Id == routeId);
-            if (!routeExists) return NotFound("Güzergah bulunamadı.");
-
-            var vehicleExists = await _context.Vehicles.AnyAsync(v => v.Id == dto.VehicleId);
-            if (!vehicleExists) return NotFound("Araç bulunamadı.");
-
-            var alreadyInQueue = await _context.RouteVehicleQueues
-                .AnyAsync(q => q.RouteId == routeId && q.VehicleId == dto.VehicleId);
-            if (alreadyInQueue) return BadRequest("Bu araç zaten bu sırada mevcut.");
-
-            // DEĞİŞİKLİK: Önce kayıt var mı kontrol et, yoksa UtcNow kullan
-            DateTime newTimestamp;
-            var hasEntries = await _context.RouteVehicleQueues
-                .AnyAsync(q => q.RouteId == routeId);
-
-            if (hasEntries)
-            {
-                var maxTimestamp = await _context.RouteVehicleQueues
-                    .Where(q => q.RouteId == routeId)
-                    .MaxAsync(q => q.QueueTimestamp);
-                newTimestamp = maxTimestamp.AddSeconds(1);
-            }
-            else
-            {
-                newTimestamp = DateTime.UtcNow;
-            }
-
-            var queueEntry = new RouteVehicleQueue
-            {
-                RouteId = routeId,
-                VehicleId = dto.VehicleId,
-                QueueTimestamp = newTimestamp
-            };
-
-            _context.RouteVehicleQueues.Add(queueEntry);
-            await _context.SaveChangesAsync();
-
-            await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
-
-            return Ok(queueEntry);
-        }
+        
 
         [HttpDelete("{vehicleId}")]
             public async Task<IActionResult> RemoveVehicleFromQueue(long routeId, long vehicleId)
