@@ -16,6 +16,7 @@
     {
         [Route("api/routes/{routeId}/queue")]
         [ApiController]
+	[Authorize]
         public class RouteQueueController : ControllerBase
         {
             private readonly AppDbContext _context;
@@ -82,9 +83,42 @@
             return Ok(queuedVehicles);
         }
 
-        
+        [HttpPost]
+	[Authorize(Roles = "Admin")]
+            public async Task<IActionResult> AddVehicleToQueue(long routeId, [FromBody] AddVehicleToQueueDto dto)
+            {
+                var routeExists = await _context.Routes.AnyAsync(r => r.Id == routeId);
+                if (!routeExists) return NotFound("Güzergah bulunamadı.");
 
-        [HttpDelete("{vehicleId}")]
+                var vehicleExists = await _context.Vehicles.AnyAsync(v => v.Id == dto.VehicleId);
+                if (!vehicleExists) return NotFound("Araç bulunamadı.");
+
+                var alreadyInQueue = await _context.RouteVehicleQueues.AnyAsync(q => q.RouteId == routeId && q.VehicleId == dto.VehicleId);
+                if (alreadyInQueue) return BadRequest("Bu araç zaten bu sırada mevcut.");
+
+            var maxTimestamp = await _context.RouteVehicleQueues
+                    .Where(q => q.RouteId == routeId)
+                    .Select(q => q.QueueTimestamp)
+                    .DefaultIfEmpty(DateTime.UtcNow)
+                    .MaxAsync();
+
+            var queueEntry = new RouteVehicleQueue
+            {
+                RouteId = routeId,
+                VehicleId = dto.VehicleId,
+                QueueTimestamp = maxTimestamp.AddSeconds(1)
+            };
+
+            _context.RouteVehicleQueues.Add(queueEntry);
+                await _context.SaveChangesAsync();
+
+                // --- SİNYAL GÖNDER ---
+                await _hubContext.Clients.All.SendAsync("ReceiveQueueUpdate");
+
+                return Ok(queueEntry);
+            }
+
+            [HttpDelete("{vehicleId}")]
             public async Task<IActionResult> RemoveVehicleFromQueue(long routeId, long vehicleId)
             {
                 var queueEntry = await _context.RouteVehicleQueues.FirstOrDefaultAsync(q => q.RouteId == routeId && q.VehicleId == vehicleId);
@@ -104,6 +138,7 @@
             }
 
         [HttpPost("reorder")]
+	[Authorize(Roles = "Admin")]
         public async Task<IActionResult> ReorderQueue(long routeId, [FromBody] ReorderQueueDto dto)
         {
             var queueEntries = await _context.RouteVehicleQueues
@@ -136,6 +171,7 @@
         }
 
         [HttpPost("move-to-end")]
+	[Authorize(Roles = "Admin")]
             public async Task<IActionResult> MoveVehicleToEnd(long routeId, [FromBody] MoveVehicleDto dto)
             {
                 var queueEntry = await _context.RouteVehicleQueues
