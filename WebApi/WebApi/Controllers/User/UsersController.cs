@@ -119,29 +119,42 @@ namespace WebApi.Controllers.User
 
 
 
+        // WebApi/WebApi/Controllers/User/UsersController.cs
+
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")] 
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(Guid id)
         {
-            // Kullanıcıyı ID'sine göre bul
             var user = await _userManager.FindByIdAsync(id.ToString());
 
             if (user == null)
             {
-                // Kullanıcı bulunamazsa 404 Not Found hatası döndür
                 return NotFound(new { Message = "Silinecek kullanıcı bulunamadı." });
             }
 
-            // Kullanıcıyı sil
+            // Kullanıcıya bağlı araçların AppUserId'sini null yap
+            var userVehicles = await context.Vehicles
+                .Where(v => v.AppUserId == id)
+                .ToListAsync();
+
+            foreach (var vehicle in userVehicles)
+            {
+                vehicle.AppUserId = null;
+                vehicle.DriverName = "Atanmadı";
+            }
+
+            if (userVehicles.Any())
+            {
+                await context.SaveChangesAsync();
+            }
+
             var result = await _userManager.DeleteAsync(user);
 
             if (result.Succeeded)
             {
-                // Silme işlemi başarılıysa 200 OK veya 204 No Content döndür
                 return Ok(new { Message = "Kullanıcı başarıyla silindi." });
             }
 
-            // Silme işlemi sırasında bir hata oluşursa 400 Bad Request döndür
             return BadRequest(result.Errors);
         }
 
