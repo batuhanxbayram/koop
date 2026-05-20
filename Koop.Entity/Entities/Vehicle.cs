@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -29,5 +29,7 @@ namespace Koop.Entity.Entities
         public bool IsActive { get; set; } = true;
 
         public ICollection<RouteVehicleQueue> RouteVehicleQueues { get; set; } = new List<RouteVehicleQueue>();
+
+        public ICollection<AccountingRecord> AccountingRecords { get; set; } = new List<AccountingRecord>();
     }
 }
