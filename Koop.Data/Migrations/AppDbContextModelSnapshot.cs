@@ -50,6 +50,70 @@ namespace Koop.Data.Migrations
                     b.ToTable("AspNetRoles", (string)null);
                 });
 
+            modelBuilder.Entity("Koop.Entity.Entities.AccountingRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("BalanceEffect")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Company")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal>("GrossAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("NetAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("QuantityKg")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("UnitPrice")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<long>("VehicleId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("WaybillNo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("VehicleId", "Date");
+
+                    b.ToTable("AccountingRecords");
+                });
+
             modelBuilder.Entity("Koop.Entity.Entities.AppUser", b =>
                 {
                     b.Property<Guid>("Id")
@@ -310,6 +374,24 @@ namespace Koop.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Koop.Entity.Entities.AccountingRecord", b =>
+                {
+                    b.HasOne("Koop.Entity.Entities.AppUser", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Koop.Entity.Entities.Vehicle", "Vehicle")
+                        .WithMany("AccountingRecords")
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("Vehicle");
+                });
+
             modelBuilder.Entity("Koop.Entity.Entities.RouteVehicleQueue", b =>
                 {
                     b.HasOne("Koop.Entity.Entities.Route", "Route")
@@ -401,6 +483,8 @@ namespace Koop.Data.Migrations
 
             modelBuilder.Entity("Koop.Entity.Entities.Vehicle", b =>
                 {
+                    b.Navigation("AccountingRecords");
+
                     b.Navigation("RouteVehicleQueues");
                 });
 #pragma warning restore 612, 618
