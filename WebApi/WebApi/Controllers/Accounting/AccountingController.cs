@@ -4,6 +4,7 @@ using Koop.Entity.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using System.Security.Claims;
 
 namespace WebApi.Controllers.Accounting
@@ -39,6 +40,107 @@ namespace WebApi.Controllers.Accounting
                 .ToListAsync();
 
             return Ok(vehicles);
+        }
+
+        [HttpGet("users")]
+        [Authorize(Roles = "Admin,Muhasebeci")]
+        public async Task<IActionResult> GetUsers()
+        {
+            var users = await _context.Users
+                .Include(u => u.Vehicles.OrderBy(v => v.LicensePlate))
+                .OrderBy(u => u.FullName)
+                .ToListAsync();
+
+            var userIds = users.Select(u => u.Id).ToList();
+            var records = await _context.AccountingRecords
+                .Include(r => r.Vehicle)
+                .Where(r => r.Vehicle.AppUserId.HasValue && userIds.Contains(r.Vehicle.AppUserId.Value))
+                .ToListAsync();
+
+            var result = users.Select(user =>
+            {
+                var userRecords = records
+                    .Where(r => r.Vehicle.AppUserId == user.Id)
+                    .ToList();
+
+                return new AccountingUserDto
+                {
+                    Id = user.Id,
+                    FullName = user.FullName,
+                    UserName = user.UserName,
+                    PhoneNumber = user.PhoneNumber,
+                    Vehicles = user.Vehicles
+                        .Select(v => new AccountingVehicleDto
+                        {
+                            Id = v.Id,
+                            LicensePlate = v.LicensePlate,
+                            DriverName = v.DriverName,
+                            AppUserId = v.AppUserId,
+                            UserFullName = user.FullName
+                        })
+                        .ToList(),
+                    IncomeTotal = userRecords.Where(r => r.BalanceEffect > 0).Sum(r => r.BalanceEffect),
+                    ExpenseTotal = userRecords.Where(r => r.Type == AccountingRecordType.Expense).Sum(r => Math.Abs(r.BalanceEffect)),
+                    PaymentTotal = userRecords.Where(r => r.Type == AccountingRecordType.Payment).Sum(r => Math.Abs(r.BalanceEffect)),
+                    Balance = userRecords.Sum(r => r.BalanceEffect),
+                    RecordCount = userRecords.Count
+                };
+            }).ToList();
+
+            return Ok(result);
+        }
+
+        [HttpGet("users/{userId:guid}/records")]
+        [Authorize(Roles = "Admin,Muhasebeci")]
+        public async Task<IActionResult> GetUserRecords(Guid userId, [FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate, [FromQuery] string? category)
+        {
+            var userExists = await _context.Users.AnyAsync(u => u.Id == userId);
+            if (!userExists)
+            {
+                return NotFound("Kullanici bulunamadi.");
+            }
+
+            var records = await ApplyRecordFilters(_context.AccountingRecords.Where(r => r.Vehicle.AppUserId == userId), startDate, endDate, category)
+                .Include(r => r.Vehicle)
+                .OrderByDescending(r => r.Date)
+                .ThenByDescending(r => r.Id)
+                .ToListAsync();
+
+            return Ok(records.Select(ToDto).ToList());
+        }
+
+        [HttpGet("users/{userId:guid}/summary")]
+        [Authorize(Roles = "Admin,Muhasebeci")]
+        public async Task<IActionResult> GetUserSummary(Guid userId, [FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate, [FromQuery] string? category)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                return NotFound("Kullanici bulunamadi.");
+            }
+
+            var records = await ApplyRecordFilters(_context.AccountingRecords.Where(r => r.Vehicle.AppUserId == userId), startDate, endDate, category)
+                .ToListAsync();
+
+            return Ok(ToUserSummary(user, records));
+        }
+
+        [HttpGet("users/{userId:guid}/monthly-summary")]
+        [Authorize(Roles = "Admin,Muhasebeci")]
+        public async Task<IActionResult> GetUserMonthlySummary(Guid userId, [FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate, [FromQuery] string? category)
+        {
+            var userExists = await _context.Users.AnyAsync(u => u.Id == userId);
+            if (!userExists)
+            {
+                return NotFound("Kullanici bulunamadi.");
+            }
+
+            var records = await ApplyRecordFilters(_context.AccountingRecords.Where(r => r.Vehicle.AppUserId == userId), startDate, endDate, category)
+                .OrderBy(r => r.Date)
+                .ThenBy(r => r.Id)
+                .ToListAsync();
+
+            return Ok(ToMonthlySummaries(records));
         }
 
         [HttpGet("vehicles/{vehicleId}/records")]
@@ -119,6 +221,67 @@ namespace WebApi.Controllers.Accounting
                 .FirstAsync(r => r.Id == record.Id);
 
             return CreatedAtAction(nameof(GetVehicleRecords), new { vehicleId }, ToDto(createdRecord));
+        }
+
+        [HttpPost("users/{userId:guid}/records")]
+        [Authorize(Roles = "Admin,Muhasebeci")]
+        public async Task<IActionResult> CreateUserRecord(Guid userId, [FromBody] CreateUserAccountingRecordDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return ValidationProblem(ModelState);
+            }
+
+            var userExists = await _context.Users.AnyAsync(u => u.Id == userId);
+            if (!userExists)
+            {
+                return NotFound("Kullanici bulunamadi.");
+            }
+
+            var selectedVehicleId = dto.VehicleId ?? await _context.Vehicles
+                .Where(v => v.AppUserId == userId)
+                .OrderBy(v => v.Id)
+                .Select(v => (long?)v.Id)
+                .FirstOrDefaultAsync();
+
+            if (selectedVehicleId == null)
+            {
+                return BadRequest(new { message = "Bu kullaniciya kayit eklemek icin once arac atamasi yapilmalidir." });
+            }
+
+            var vehicle = await _context.Vehicles
+                .FirstOrDefaultAsync(v => v.Id == selectedVehicleId.Value && v.AppUserId == userId);
+
+            if (vehicle == null)
+            {
+                return BadRequest(new { message = "Secilen arac bu kullaniciya ait degil." });
+            }
+
+            var record = new AccountingRecord
+            {
+                VehicleId = vehicle.Id,
+                Date = dto.Date,
+                Type = dto.Type,
+                Category = dto.Category,
+                Company = dto.Company,
+                WaybillNo = dto.WaybillNo,
+                Description = dto.Description,
+                QuantityKg = dto.QuantityKg,
+                UnitPrice = dto.UnitPrice,
+                CreatedByUserId = GetCurrentUserId(),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            ApplyAmounts(record, dto.Amount);
+
+            _context.AccountingRecords.Add(record);
+            await _context.SaveChangesAsync();
+
+            var createdRecord = await _context.AccountingRecords
+                .Include(r => r.Vehicle)
+                .FirstAsync(r => r.Id == record.Id);
+
+            return CreatedAtAction(nameof(GetUserRecords), new { userId }, ToDto(createdRecord));
         }
 
         [HttpPut("records/{id}")]
@@ -217,6 +380,52 @@ namespace WebApi.Controllers.Accounting
             return Ok(summaries);
         }
 
+        [HttpGet("my-user-summary")]
+        public async Task<IActionResult> GetMyUserSummary([FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate, [FromQuery] string? category)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+            {
+                return Unauthorized();
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId.Value);
+            if (user == null)
+            {
+                return NotFound("Kullanici bulunamadi.");
+            }
+
+            var records = await ApplyRecordFilters(
+                    _context.AccountingRecords.Where(r => r.Vehicle.AppUserId == userId),
+                    startDate,
+                    endDate,
+                    category)
+                .ToListAsync();
+
+            return Ok(ToUserSummary(user, records));
+        }
+
+        [HttpGet("my-monthly-summary")]
+        public async Task<IActionResult> GetMyMonthlySummary([FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate, [FromQuery] string? category)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+            {
+                return Unauthorized();
+            }
+
+            var records = await ApplyRecordFilters(
+                    _context.AccountingRecords.Where(r => r.Vehicle.AppUserId == userId),
+                    startDate,
+                    endDate,
+                    category)
+                .OrderBy(r => r.Date)
+                .ThenBy(r => r.Id)
+                .ToListAsync();
+
+            return Ok(ToMonthlySummaries(records));
+        }
+
         private static IQueryable<AccountingRecord> ApplyRecordFilters(IQueryable<AccountingRecord> query, DateTime? startDate, DateTime? endDate, string? category)
         {
             if (startDate.HasValue)
@@ -258,6 +467,69 @@ namespace WebApi.Controllers.Accounting
                 BalanceEffect = record.BalanceEffect,
                 CreatedAt = record.CreatedAt
             };
+        }
+
+        private static AccountingUserSummaryDto ToUserSummary(AppUser user, List<AccountingRecord> records)
+        {
+            var expenseTotal = records
+                .Where(r => r.Type == AccountingRecordType.Expense)
+                .Sum(r => Math.Abs(r.BalanceEffect));
+            var paymentTotal = records
+                .Where(r => r.Type == AccountingRecordType.Payment)
+                .Sum(r => Math.Abs(r.BalanceEffect));
+
+            return new AccountingUserSummaryDto
+            {
+                UserId = user.Id,
+                FullName = user.FullName,
+                UserName = user.UserName,
+                IncomeTotal = records.Where(r => r.BalanceEffect > 0).Sum(r => r.BalanceEffect),
+                ExpenseTotal = expenseTotal,
+                PaymentTotal = paymentTotal,
+                OutgoingTotal = expenseTotal + paymentTotal,
+                Balance = records.Sum(r => r.BalanceEffect),
+                RecordCount = records.Count
+            };
+        }
+
+        private static List<AccountingMonthlySummaryDto> ToMonthlySummaries(List<AccountingRecord> records)
+        {
+            var runningBalance = 0m;
+            var culture = new CultureInfo("tr-TR");
+
+            return records
+                .GroupBy(r => new { r.Date.Year, r.Date.Month })
+                .OrderBy(g => g.Key.Year)
+                .ThenBy(g => g.Key.Month)
+                .Select(g =>
+                {
+                    var monthStart = new DateTime(g.Key.Year, g.Key.Month, 1);
+                    var expenseTotal = g
+                        .Where(r => r.Type == AccountingRecordType.Expense)
+                        .Sum(r => Math.Abs(r.BalanceEffect));
+                    var paymentTotal = g
+                        .Where(r => r.Type == AccountingRecordType.Payment)
+                        .Sum(r => Math.Abs(r.BalanceEffect));
+                    var profitLoss = g.Sum(r => r.BalanceEffect);
+                    runningBalance += profitLoss;
+
+                    return new AccountingMonthlySummaryDto
+                    {
+                        Year = g.Key.Year,
+                        Month = g.Key.Month,
+                        MonthName = monthStart.ToString("MMMM yyyy", culture),
+                        MonthStart = monthStart,
+                        MonthEnd = monthStart.AddMonths(1).AddTicks(-1),
+                        IncomeTotal = g.Where(r => r.BalanceEffect > 0).Sum(r => r.BalanceEffect),
+                        ExpenseTotal = expenseTotal,
+                        PaymentTotal = paymentTotal,
+                        OutgoingTotal = expenseTotal + paymentTotal,
+                        ProfitLoss = profitLoss,
+                        RunningBalance = runningBalance,
+                        RecordCount = g.Count()
+                    };
+                })
+                .ToList();
         }
 
         private static AccountingSummaryDto ToSummary(Vehicle vehicle, List<AccountingRecord> records)
