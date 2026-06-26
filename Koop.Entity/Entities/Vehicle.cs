@@ -31,5 +31,7 @@ namespace Koop.Entity.Entities
         public ICollection<RouteVehicleQueue> RouteVehicleQueues { get; set; } = new List<RouteVehicleQueue>();
 
         public ICollection<AccountingRecord> AccountingRecords { get; set; } = new List<AccountingRecord>();
+
+        public ICollection<AccountingMonthlySummary> AccountingMonthlySummaries { get; set; } = new List<AccountingMonthlySummary>();
     }
 }

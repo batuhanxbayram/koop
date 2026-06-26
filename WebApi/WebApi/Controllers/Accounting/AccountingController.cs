@@ -143,6 +143,167 @@ namespace WebApi.Controllers.Accounting
             return Ok(ToMonthlySummaries(records));
         }
 
+        [HttpGet("monthly-summaries")]
+        [Authorize(Roles = "Muhasebeci")]
+        public async Task<IActionResult> GetMonthlySummaries(
+            [FromQuery] Guid? userId,
+            [FromQuery] long? vehicleId,
+            [FromQuery] int? periodMonth,
+            [FromQuery] int? periodYear)
+        {
+            var query = ApplyMonthlySummaryFilters(_context.AccountingMonthlySummaries.AsQueryable(), userId, vehicleId, periodMonth, periodYear);
+
+            var summaries = await query
+                .Include(s => s.User)
+                .Include(s => s.Vehicle)
+                .OrderByDescending(s => s.PeriodYear)
+                .ThenByDescending(s => s.PeriodMonth)
+                .ThenByDescending(s => s.Id)
+                .ToListAsync();
+
+            return Ok(summaries.Select(ToMonthlySummaryDto).ToList());
+        }
+
+        [HttpPost("monthly-summaries")]
+        [Authorize(Roles = "Muhasebeci")]
+        public async Task<IActionResult> CreateMonthlySummary([FromBody] CreateAccountingMonthlySummaryDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return ValidationProblem(ModelState);
+            }
+
+            var vehicle = await _context.Vehicles
+                .Include(v => v.AppUser)
+                .FirstOrDefaultAsync(v => v.Id == dto.VehicleId);
+
+            if (vehicle == null)
+            {
+                return NotFound("Arac bulunamadi.");
+            }
+
+            if (vehicle.AppUserId == null)
+            {
+                return BadRequest(new { message = "Secilen araca atanmis kullanici bulunmuyor." });
+            }
+
+            if (dto.UserId.HasValue && dto.UserId.Value != vehicle.AppUserId.Value)
+            {
+                return BadRequest(new { message = "Secilen arac bu kullaniciya ait degil." });
+            }
+
+            var duplicateExists = await _context.AccountingMonthlySummaries.AnyAsync(s =>
+                s.UserId == vehicle.AppUserId &&
+                s.VehicleId == vehicle.Id &&
+                s.PeriodYear == dto.PeriodYear &&
+                s.PeriodMonth == dto.PeriodMonth);
+
+            if (duplicateExists)
+            {
+                return BadRequest(new { message = "Bu kullanici ve plaka icin secilen donemde cari ozet zaten var." });
+            }
+
+            var summary = new AccountingMonthlySummary
+            {
+                UserId = vehicle.AppUserId,
+                VehicleId = vehicle.Id,
+                PlateNumber = vehicle.LicensePlate,
+                PeriodMonth = dto.PeriodMonth,
+                PeriodYear = dto.PeriodYear,
+                PreviousBalance = dto.PreviousBalance,
+                IncomeAmount = dto.IncomeAmount,
+                ExpenseAmount = dto.ExpenseAmount,
+                Description = dto.Description,
+                CreatedByUserId = GetCurrentUserId(),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            ApplyMonthlySummaryTotal(summary);
+
+            _context.AccountingMonthlySummaries.Add(summary);
+            await _context.SaveChangesAsync();
+
+            var createdSummary = await _context.AccountingMonthlySummaries
+                .Include(s => s.User)
+                .Include(s => s.Vehicle)
+                .FirstAsync(s => s.Id == summary.Id);
+
+            return CreatedAtAction(nameof(GetMonthlySummaries), new { vehicleId = summary.VehicleId, periodMonth = summary.PeriodMonth, periodYear = summary.PeriodYear }, ToMonthlySummaryDto(createdSummary));
+        }
+
+        [HttpPut("monthly-summaries/{id:long}")]
+        [Authorize(Roles = "Muhasebeci")]
+        public async Task<IActionResult> UpdateMonthlySummary(long id, [FromBody] UpdateAccountingMonthlySummaryDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return ValidationProblem(ModelState);
+            }
+
+            var summary = await _context.AccountingMonthlySummaries.FindAsync(id);
+            if (summary == null)
+            {
+                return NotFound("Cari ozet bulunamadi.");
+            }
+
+            var vehicle = await _context.Vehicles
+                .Include(v => v.AppUser)
+                .FirstOrDefaultAsync(v => v.Id == dto.VehicleId);
+
+            if (vehicle == null)
+            {
+                return NotFound("Arac bulunamadi.");
+            }
+
+            if (vehicle.AppUserId == null)
+            {
+                return BadRequest(new { message = "Secilen araca atanmis kullanici bulunmuyor." });
+            }
+
+            var duplicateExists = await _context.AccountingMonthlySummaries.AnyAsync(s =>
+                s.Id != id &&
+                s.UserId == vehicle.AppUserId &&
+                s.VehicleId == vehicle.Id &&
+                s.PeriodYear == dto.PeriodYear &&
+                s.PeriodMonth == dto.PeriodMonth);
+
+            if (duplicateExists)
+            {
+                return BadRequest(new { message = "Bu kullanici ve plaka icin secilen donemde cari ozet zaten var." });
+            }
+
+            summary.UserId = vehicle.AppUserId;
+            summary.VehicleId = vehicle.Id;
+            summary.PlateNumber = vehicle.LicensePlate;
+            summary.PeriodMonth = dto.PeriodMonth;
+            summary.PeriodYear = dto.PeriodYear;
+            summary.PreviousBalance = dto.PreviousBalance;
+            summary.IncomeAmount = dto.IncomeAmount;
+            summary.ExpenseAmount = dto.ExpenseAmount;
+            summary.Description = dto.Description;
+            summary.UpdatedAt = DateTime.UtcNow;
+
+            ApplyMonthlySummaryTotal(summary);
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        [HttpDelete("monthly-summaries/{id:long}")]
+        [Authorize(Roles = "Muhasebeci")]
+        public async Task<IActionResult> DeleteMonthlySummary(long id)
+        {
+            var summary = await _context.AccountingMonthlySummaries.FindAsync(id);
+            if (summary == null)
+            {
+                return NotFound("Cari ozet bulunamadi.");
+            }
+
+            _context.AccountingMonthlySummaries.Remove(summary);
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
         [HttpGet("vehicles/{vehicleId}/records")]
         [Authorize(Roles = "Admin,Muhasebeci")]
         public async Task<IActionResult> GetVehicleRecords(long vehicleId, [FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate, [FromQuery] string? category)
@@ -426,6 +587,31 @@ namespace WebApi.Controllers.Accounting
             return Ok(ToMonthlySummaries(records));
         }
 
+        [HttpGet("my-monthly-summaries")]
+        public async Task<IActionResult> GetMyMonthlySummaries([FromQuery] int? periodMonth, [FromQuery] int? periodYear)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+            {
+                return Unauthorized();
+            }
+
+            var summaries = await ApplyMonthlySummaryFilters(
+                    _context.AccountingMonthlySummaries.Where(s => s.UserId == userId),
+                    userId,
+                    null,
+                    periodMonth,
+                    periodYear)
+                .Include(s => s.User)
+                .Include(s => s.Vehicle)
+                .OrderByDescending(s => s.PeriodYear)
+                .ThenByDescending(s => s.PeriodMonth)
+                .ThenByDescending(s => s.Id)
+                .ToListAsync();
+
+            return Ok(summaries.Select(ToMonthlySummaryDto).ToList());
+        }
+
         private static IQueryable<AccountingRecord> ApplyRecordFilters(IQueryable<AccountingRecord> query, DateTime? startDate, DateTime? endDate, string? category)
         {
             if (startDate.HasValue)
@@ -444,6 +630,66 @@ namespace WebApi.Controllers.Accounting
             }
 
             return query;
+        }
+
+        private static IQueryable<AccountingMonthlySummary> ApplyMonthlySummaryFilters(
+            IQueryable<AccountingMonthlySummary> query,
+            Guid? userId,
+            long? vehicleId,
+            int? periodMonth,
+            int? periodYear)
+        {
+            if (userId.HasValue)
+            {
+                query = query.Where(s => s.UserId == userId);
+            }
+
+            if (vehicleId.HasValue)
+            {
+                query = query.Where(s => s.VehicleId == vehicleId);
+            }
+
+            if (periodMonth.HasValue)
+            {
+                query = query.Where(s => s.PeriodMonth == periodMonth);
+            }
+
+            if (periodYear.HasValue)
+            {
+                query = query.Where(s => s.PeriodYear == periodYear);
+            }
+
+            return query;
+        }
+
+        private static void ApplyMonthlySummaryTotal(AccountingMonthlySummary summary)
+        {
+            summary.TotalBalance = Math.Round(summary.PreviousBalance + summary.IncomeAmount - summary.ExpenseAmount, 2);
+        }
+
+        private static AccountingMonthlySummaryRecordDto ToMonthlySummaryDto(AccountingMonthlySummary summary)
+        {
+            var periodStart = new DateTime(summary.PeriodYear, summary.PeriodMonth, 1);
+            return new AccountingMonthlySummaryRecordDto
+            {
+                Id = summary.Id,
+                UserId = summary.UserId,
+                UserFullName = summary.User?.FullName,
+                VehicleId = summary.VehicleId,
+                PlateNumber = !string.IsNullOrWhiteSpace(summary.PlateNumber)
+                    ? summary.PlateNumber
+                    : summary.Vehicle?.LicensePlate ?? string.Empty,
+                PeriodMonth = summary.PeriodMonth,
+                PeriodYear = summary.PeriodYear,
+                PeriodName = periodStart.ToString("MMMM yyyy", new CultureInfo("tr-TR")),
+                PreviousBalance = summary.PreviousBalance,
+                IncomeAmount = summary.IncomeAmount,
+                ExpenseAmount = summary.ExpenseAmount,
+                TotalBalance = summary.TotalBalance,
+                Description = summary.Description,
+                CreatedAt = summary.CreatedAt,
+                UpdatedAt = summary.UpdatedAt
+            };
         }
 
         private static AccountingRecordDto ToDto(AccountingRecord record)
