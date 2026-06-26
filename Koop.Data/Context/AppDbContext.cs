@@ -19,6 +19,7 @@ namespace Koop.Data.Context
         public DbSet<Vehicle> Vehicles { get; set; }
         public DbSet<RouteVehicleQueue> RouteVehicleQueues { get; set; }
         public DbSet<AccountingRecord> AccountingRecords { get; set; }
+        public DbSet<AccountingMonthlySummary> AccountingMonthlySummaries { get; set; }
 
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
@@ -58,6 +59,32 @@ namespace Koop.Data.Context
 
             builder.Entity<AccountingRecord>()
                 .HasIndex(a => new { a.VehicleId, a.Date });
+
+            builder.Entity<AccountingMonthlySummary>()
+                .HasOne(a => a.User)
+                .WithMany()
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<AccountingMonthlySummary>()
+                .HasOne(a => a.Vehicle)
+                .WithMany(v => v.AccountingMonthlySummaries)
+                .HasForeignKey(a => a.VehicleId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<AccountingMonthlySummary>()
+                .HasOne(a => a.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(a => a.CreatedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<AccountingMonthlySummary>()
+                .HasIndex(a => new { a.UserId, a.VehicleId, a.PeriodYear, a.PeriodMonth })
+                .IsUnique()
+                .HasFilter("[UserId] IS NOT NULL AND [VehicleId] IS NOT NULL");
+
+            builder.Entity<AccountingMonthlySummary>()
+                .HasIndex(a => new { a.PeriodYear, a.PeriodMonth });
 
             
             builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
