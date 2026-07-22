@@ -20,6 +20,7 @@ namespace Koop.Data.Context
         public DbSet<RouteVehicleQueue> RouteVehicleQueues { get; set; }
         public DbSet<AccountingRecord> AccountingRecords { get; set; }
         public DbSet<AccountingMonthlySummary> AccountingMonthlySummaries { get; set; }
+        public DbSet<AccountingTransaction> AccountingTransactions { get; set; }
 
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
@@ -85,6 +86,21 @@ namespace Koop.Data.Context
 
             builder.Entity<AccountingMonthlySummary>()
                 .HasIndex(a => new { a.PeriodYear, a.PeriodMonth });
+
+            builder.Entity<AccountingTransaction>()
+                .HasOne(a => a.User)
+                .WithMany(u => u.AccountingTransactions)
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<AccountingTransaction>()
+                .HasOne(a => a.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(a => a.CreatedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<AccountingTransaction>()
+                .HasIndex(a => new { a.UserId, a.TransactionDate, a.Id });
 
             
             builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());

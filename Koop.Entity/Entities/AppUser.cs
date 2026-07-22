@@ -16,6 +16,7 @@ namespace Koop.Entity.Entities
         public DateTime RefreshTokenExpireTime { get; set; }
 
         public ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
+        public ICollection<AccountingTransaction> AccountingTransactions { get; set; } = new List<AccountingTransaction>();
 
     }
 
