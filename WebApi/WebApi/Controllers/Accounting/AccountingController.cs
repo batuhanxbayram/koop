@@ -144,7 +144,7 @@ namespace WebApi.Controllers.Accounting
         }
 
         [HttpGet("monthly-summaries")]
-        [Authorize(Roles = "Muhasebeci")]
+        [Authorize(Roles = "Admin,Muhasebeci")]
         public async Task<IActionResult> GetMonthlySummaries(
             [FromQuery] Guid? userId,
             [FromQuery] long? vehicleId,
@@ -165,7 +165,7 @@ namespace WebApi.Controllers.Accounting
         }
 
         [HttpPost("monthly-summaries")]
-        [Authorize(Roles = "Muhasebeci")]
+        [Authorize(Roles = "Admin,Muhasebeci")]
         public async Task<IActionResult> CreateMonthlySummary([FromBody] CreateAccountingMonthlySummaryDto dto)
         {
             if (!ModelState.IsValid)
@@ -232,7 +232,7 @@ namespace WebApi.Controllers.Accounting
         }
 
         [HttpPut("monthly-summaries/{id:long}")]
-        [Authorize(Roles = "Muhasebeci")]
+        [Authorize(Roles = "Admin,Muhasebeci")]
         public async Task<IActionResult> UpdateMonthlySummary(long id, [FromBody] UpdateAccountingMonthlySummaryDto dto)
         {
             if (!ModelState.IsValid)
@@ -290,7 +290,7 @@ namespace WebApi.Controllers.Accounting
         }
 
         [HttpDelete("monthly-summaries/{id:long}")]
-        [Authorize(Roles = "Muhasebeci")]
+        [Authorize(Roles = "Admin,Muhasebeci")]
         public async Task<IActionResult> DeleteMonthlySummary(long id)
         {
             var summary = await _context.AccountingMonthlySummaries.FindAsync(id);
