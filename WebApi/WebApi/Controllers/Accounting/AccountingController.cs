@@ -228,7 +228,7 @@ namespace WebApi.Controllers.Accounting
                 .Include(s => s.Vehicle)
                 .FirstAsync(s => s.Id == summary.Id);
 
-            return CreatedAtAction(nameof(GetMonthlySummaries), new { vehicleId = summary.VehicleId, periodMonth = summary.PeriodMonth, periodYear = summary.PeriodYear }, ToMonthlySummaryDto(createdSummary));
+            return Ok(ToMonthlySummaryDto(createdSummary));
         }
 
         [HttpPut("monthly-summaries/{id:long}")]
@@ -381,7 +381,7 @@ namespace WebApi.Controllers.Accounting
                 .Include(r => r.Vehicle)
                 .FirstAsync(r => r.Id == record.Id);
 
-            return CreatedAtAction(nameof(GetVehicleRecords), new { vehicleId }, ToDto(createdRecord));
+            return Ok(ToDto(createdRecord));
         }
 
         [HttpPost("users/{userId:guid}/records")]
@@ -442,7 +442,7 @@ namespace WebApi.Controllers.Accounting
                 .Include(r => r.Vehicle)
                 .FirstAsync(r => r.Id == record.Id);
 
-            return CreatedAtAction(nameof(GetUserRecords), new { userId }, ToDto(createdRecord));
+            return Ok(ToDto(createdRecord));
         }
 
         [HttpPut("records/{id}")]
