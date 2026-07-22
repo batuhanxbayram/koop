@@ -114,7 +114,8 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        Console.WriteLine("Veritabanı işlemleri sırasında hata: " + ex.Message);
+        Console.Error.WriteLine("Veritabanı işlemleri sırasında hata: " + ex);
+        throw;
     }
 }
 

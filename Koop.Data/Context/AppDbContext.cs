@@ -65,19 +65,19 @@ namespace Koop.Data.Context
                 .HasOne(a => a.User)
                 .WithMany()
                 .HasForeignKey(a => a.UserId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<AccountingMonthlySummary>()
                 .HasOne(a => a.Vehicle)
                 .WithMany(v => v.AccountingMonthlySummaries)
                 .HasForeignKey(a => a.VehicleId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<AccountingMonthlySummary>()
                 .HasOne(a => a.CreatedByUser)
                 .WithMany()
                 .HasForeignKey(a => a.CreatedByUserId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<AccountingMonthlySummary>()
                 .HasIndex(a => new { a.UserId, a.VehicleId, a.PeriodYear, a.PeriodMonth })
@@ -91,13 +91,13 @@ namespace Koop.Data.Context
                 .HasOne(a => a.User)
                 .WithMany(u => u.AccountingTransactions)
                 .HasForeignKey(a => a.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<AccountingTransaction>()
                 .HasOne(a => a.CreatedByUser)
                 .WithMany()
                 .HasForeignKey(a => a.CreatedByUserId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<AccountingTransaction>()
                 .HasIndex(a => new { a.UserId, a.TransactionDate, a.Id });
