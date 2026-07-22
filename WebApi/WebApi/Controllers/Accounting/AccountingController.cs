@@ -1,6 +1,7 @@
 using Koop.Data.Context;
 using Koop.Entity.DTOs.Accounting;
 using Koop.Entity.Entities;
+using Koop.Service.Services.AccountingServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,10 +17,12 @@ namespace WebApi.Controllers.Accounting
     {
         private const decimal GrossMultiplier = 1.104m;
         private readonly AppDbContext _context;
+        private readonly ILogger<AccountingController> _logger;
 
-        public AccountingController(AppDbContext context)
+        public AccountingController(AppDbContext context, ILogger<AccountingController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         [HttpGet("vehicles")]
@@ -46,21 +49,31 @@ namespace WebApi.Controllers.Accounting
         [Authorize(Roles = "Admin,Muhasebeci")]
         public async Task<IActionResult> GetUsers()
         {
+            var userRoleId = await _context.Roles
+                .Where(r => r.NormalizedName == "USER")
+                .Select(r => (Guid?)r.Id)
+                .FirstOrDefaultAsync();
+
+            if (userRoleId == null)
+            {
+                return Ok(new List<AccountingUserDto>());
+            }
+
             var users = await _context.Users
                 .Include(u => u.Vehicles.OrderBy(v => v.LicensePlate))
+                .Where(u => _context.UserRoles.Any(ur => ur.UserId == u.Id && ur.RoleId == userRoleId.Value))
                 .OrderBy(u => u.FullName)
                 .ToListAsync();
 
             var userIds = users.Select(u => u.Id).ToList();
-            var records = await _context.AccountingRecords
-                .Include(r => r.Vehicle)
-                .Where(r => r.Vehicle.AppUserId.HasValue && userIds.Contains(r.Vehicle.AppUserId.Value))
+            var transactions = await _context.AccountingTransactions
+                .Where(r => userIds.Contains(r.UserId))
                 .ToListAsync();
 
             var result = users.Select(user =>
             {
-                var userRecords = records
-                    .Where(r => r.Vehicle.AppUserId == user.Id)
+                var userTransactions = transactions
+                    .Where(r => r.UserId == user.Id)
                     .ToList();
 
                 return new AccountingUserDto
@@ -79,15 +92,148 @@ namespace WebApi.Controllers.Accounting
                             UserFullName = user.FullName
                         })
                         .ToList(),
-                    IncomeTotal = userRecords.Where(r => r.BalanceEffect > 0).Sum(r => r.BalanceEffect),
-                    ExpenseTotal = userRecords.Where(r => r.Type == AccountingRecordType.Expense).Sum(r => Math.Abs(r.BalanceEffect)),
-                    PaymentTotal = userRecords.Where(r => r.Type == AccountingRecordType.Payment).Sum(r => Math.Abs(r.BalanceEffect)),
-                    Balance = userRecords.Sum(r => r.BalanceEffect),
-                    RecordCount = userRecords.Count
+                    IncomeTotal = userTransactions.Where(r => r.TransactionType == AccountingTransactionType.Credit).Sum(r => r.Amount),
+                    ExpenseTotal = userTransactions.Where(r => r.TransactionType == AccountingTransactionType.Debit).Sum(r => r.Amount),
+                    PaymentTotal = 0,
+                    Balance = userTransactions.Sum(GetTransactionEffect),
+                    RecordCount = userTransactions.Count
                 };
             }).ToList();
 
             return Ok(result);
+        }
+
+        [HttpGet("users/{userId:guid}/ledger")]
+        [Authorize(Roles = "Admin,Muhasebeci")]
+        public async Task<IActionResult> GetUserLedger(Guid userId, [FromQuery] int? periodMonth, [FromQuery] int? periodYear, [FromQuery] string? sort)
+        {
+            var user = await GetNormalUserAsync(userId);
+            if (user == null)
+            {
+                return NotFound("Kullanici bulunamadi.");
+            }
+
+            if (!TryGetPeriod(periodMonth, periodYear, out var month, out var year, out var periodError))
+            {
+                return BadRequest(new { message = periodError });
+            }
+
+            var ledger = await BuildLedgerAsync(user, month, year, sort);
+            return Ok(ledger);
+        }
+
+        [HttpPost("users/{userId:guid}/transactions")]
+        [Authorize(Roles = "Admin,Muhasebeci")]
+        public async Task<IActionResult> CreateTransaction(Guid userId, [FromBody] CreateAccountingTransactionDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return ValidationProblem(ModelState);
+            }
+
+            var validationError = AccountingLedgerCalculator.ValidateInput(dto.TransactionDate, dto.Description, dto.Type, dto.Amount);
+            if (validationError != null)
+            {
+                return BadRequest(new { message = validationError });
+            }
+
+            var user = await GetNormalUserAsync(userId);
+            if (user == null)
+            {
+                return NotFound("Kullanici bulunamadi.");
+            }
+
+            var currentUserId = GetCurrentUserId();
+            if (currentUserId == null)
+            {
+                return Unauthorized();
+            }
+
+            var transaction = new AccountingTransaction
+            {
+                UserId = user.Id,
+                TransactionDate = dto.TransactionDate.Date,
+                Description = dto.Description.Trim(),
+                TransactionType = dto.Type,
+                Amount = Math.Round(dto.Amount, 2),
+                CreatedByUserId = currentUserId,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.AccountingTransactions.Add(transaction);
+            await _context.SaveChangesAsync();
+
+            return Ok(ToTransactionDto(transaction, GetTransactionEffect(transaction)));
+        }
+
+        [HttpPut("transactions/{id:long}")]
+        [Authorize(Roles = "Admin,Muhasebeci")]
+        public async Task<IActionResult> UpdateTransaction(long id, [FromBody] UpdateAccountingTransactionDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return ValidationProblem(ModelState);
+            }
+
+            var validationError = AccountingLedgerCalculator.ValidateInput(dto.TransactionDate, dto.Description, dto.Type, dto.Amount);
+            if (validationError != null)
+            {
+                return BadRequest(new { message = validationError });
+            }
+
+            var transaction = await _context.AccountingTransactions.FindAsync(id);
+            if (transaction == null)
+            {
+                return NotFound("Cari hareket bulunamadi.");
+            }
+
+            transaction.TransactionDate = dto.TransactionDate.Date;
+            transaction.Description = dto.Description.Trim();
+            transaction.TransactionType = dto.Type;
+            transaction.Amount = Math.Round(dto.Amount, 2);
+            transaction.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        [HttpDelete("transactions/{id:long}")]
+        [Authorize(Roles = "Admin,Muhasebeci")]
+        public async Task<IActionResult> DeleteTransaction(long id)
+        {
+            var transaction = await _context.AccountingTransactions.FindAsync(id);
+            if (transaction == null)
+            {
+                return NotFound("Cari hareket bulunamadi.");
+            }
+
+            _context.AccountingTransactions.Remove(transaction);
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        [HttpGet("my-ledger")]
+        public async Task<IActionResult> GetMyLedger([FromQuery] int? periodMonth, [FromQuery] int? periodYear, [FromQuery] string? sort)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+            {
+                return Unauthorized();
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId.Value);
+            if (user == null)
+            {
+                return NotFound("Kullanici bulunamadi.");
+            }
+
+            if (!TryGetPeriod(periodMonth, periodYear, out var month, out var year, out var periodError))
+            {
+                return BadRequest(new { message = periodError });
+            }
+
+            var ledger = await BuildLedgerAsync(user, month, year, sort);
+            return Ok(ledger);
         }
 
         [HttpGet("users/{userId:guid}/records")]
@@ -192,6 +338,11 @@ namespace WebApi.Controllers.Accounting
                 return BadRequest(new { message = "Secilen arac bu kullaniciya ait degil." });
             }
 
+            if (string.IsNullOrWhiteSpace(vehicle.LicensePlate))
+            {
+                return BadRequest(new { message = "Secilen aracin plaka bilgisi bos." });
+            }
+
             var duplicateExists = await _context.AccountingMonthlySummaries.AnyAsync(s =>
                 s.UserId == vehicle.AppUserId &&
                 s.VehicleId == vehicle.Id &&
@@ -220,8 +371,25 @@ namespace WebApi.Controllers.Accounting
 
             ApplyMonthlySummaryTotal(summary);
 
-            _context.AccountingMonthlySummaries.Add(summary);
-            await _context.SaveChangesAsync();
+            try
+            {
+                _context.AccountingMonthlySummaries.Add(summary);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex,
+                    "Cari ozet kaydedilemedi. UserId: {UserId}, VehicleId: {VehicleId}, Period: {PeriodMonth}/{PeriodYear}",
+                    summary.UserId,
+                    summary.VehicleId,
+                    summary.PeriodMonth,
+                    summary.PeriodYear);
+
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    message = "Cari ozet veritabanina kaydedilemedi. Migration uygulanmamis olabilir veya ayni donem icin cakisan kayit vardir."
+                });
+            }
 
             var createdSummary = await _context.AccountingMonthlySummaries
                 .Include(s => s.User)
@@ -610,6 +778,85 @@ namespace WebApi.Controllers.Accounting
                 .ToListAsync();
 
             return Ok(summaries.Select(ToMonthlySummaryDto).ToList());
+        }
+
+        private async Task<AppUser?> GetNormalUserAsync(Guid userId)
+        {
+            var userRoleId = await _context.Roles
+                .Where(r => r.NormalizedName == "USER")
+                .Select(r => (Guid?)r.Id)
+                .FirstOrDefaultAsync();
+
+            if (userRoleId == null)
+            {
+                return null;
+            }
+
+            return await _context.Users
+                .FirstOrDefaultAsync(u =>
+                    u.Id == userId &&
+                    _context.UserRoles.Any(ur => ur.UserId == u.Id && ur.RoleId == userRoleId.Value));
+        }
+
+        private async Task<AccountingLedgerDto> BuildLedgerAsync(AppUser user, int periodMonth, int periodYear, string? sort)
+        {
+            var periodEnd = new DateTime(periodYear, periodMonth, 1).AddMonths(1);
+            var transactions = await _context.AccountingTransactions
+                .Where(t => t.UserId == user.Id && t.TransactionDate < periodEnd)
+                .OrderBy(t => t.TransactionDate)
+                .ThenBy(t => t.CreatedAt)
+                .ThenBy(t => t.Id)
+                .ToListAsync();
+
+            return AccountingLedgerCalculator.Calculate(user, transactions, periodMonth, periodYear, sort);
+        }
+
+        private static bool TryGetPeriod(int? periodMonth, int? periodYear, out int month, out int year, out string? error)
+        {
+            var today = DateTime.Today;
+            month = periodMonth ?? today.Month;
+            year = periodYear ?? today.Year;
+            error = null;
+
+            if (month < 1 || month > 12)
+            {
+                error = "Ay 1 ile 12 arasinda olmalidir.";
+                return false;
+            }
+
+            if (year < 2000 || year > 2100)
+            {
+                error = "Yil 2000 ile 2100 arasinda olmalidir.";
+                return false;
+            }
+
+            return true;
+        }
+
+        private static decimal GetTransactionEffect(AccountingTransaction transaction)
+        {
+            return transaction.TransactionType == AccountingTransactionType.Credit
+                ? transaction.Amount
+                : -transaction.Amount;
+        }
+
+        private static AccountingTransactionDto ToTransactionDto(AccountingTransaction transaction, decimal runningBalance)
+        {
+            return new AccountingTransactionDto
+            {
+                Id = transaction.Id,
+                UserId = transaction.UserId,
+                Date = transaction.TransactionDate,
+                Description = transaction.Description,
+                Type = transaction.TransactionType,
+                TypeName = transaction.TransactionType.ToString(),
+                Amount = transaction.Amount,
+                CreditAmount = transaction.TransactionType == AccountingTransactionType.Credit ? transaction.Amount : 0,
+                DebitAmount = transaction.TransactionType == AccountingTransactionType.Debit ? transaction.Amount : 0,
+                RunningBalance = Math.Round(runningBalance, 2),
+                CreatedAt = transaction.CreatedAt,
+                UpdatedAt = transaction.UpdatedAt
+            };
         }
 
         private static IQueryable<AccountingRecord> ApplyRecordFilters(IQueryable<AccountingRecord> query, DateTime? startDate, DateTime? endDate, string? category)
