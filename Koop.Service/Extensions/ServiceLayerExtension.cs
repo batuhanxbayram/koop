@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -43,6 +44,7 @@ namespace Koop.Service.Extensions
                     ValidateLifetime = true,
                     ValidIssuer = cfg["JWT:Issuer"],
                     ValidAudience = cfg["JWT:Audience"],
+                    RoleClaimType = ClaimTypes.Role,
                     ClockSkew = TimeSpan.Zero
                 };
 
